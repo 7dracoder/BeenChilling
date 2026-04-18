@@ -17,6 +17,7 @@ except ImportError:
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Cookie
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 import fridge_observer.config as config_module
 from fridge_observer.ws_manager import manager
@@ -75,6 +76,16 @@ app = FastAPI(
     description="Smart fridge monitoring system API",
     version="2.0.0",
     lifespan=lifespan,
+)
+
+# Configure CORS for production deployment
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in allowed_origins],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers
