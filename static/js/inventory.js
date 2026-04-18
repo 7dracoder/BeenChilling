@@ -148,9 +148,21 @@ function renderFoodCard(item) {
     expiryText = 'No expiry date';
   }
 
+  // Use FLUX-generated food image with emoji fallback
+  const imgUrl = `/api/ai/food-image?name=${encodeURIComponent(item.name)}&category=${encodeURIComponent(item.category || '')}`;
+
   return `
     <div class="food-card ${statusClass}" data-id="${item.id}" role="button" tabindex="0" aria-label="${item.name}">
-      <span class="category-icon" aria-hidden="true">${emoji}</span>
+      <div class="food-card-img-wrap">
+        <img
+          src="${imgUrl}"
+          alt="${escapeHtml(item.name)}"
+          class="food-card-img"
+          loading="lazy"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <span class="category-icon food-card-img-fallback" aria-hidden="true" style="display:none;">${emoji}</span>
+      </div>
       <div class="food-card-name">${escapeHtml(item.name)}</div>
       <div class="food-card-expiry mono">${expiryText}</div>
       <div class="food-card-meta">

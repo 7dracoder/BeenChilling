@@ -50,6 +50,10 @@ Thumbs.db
 # ── Kiro internal ─────────────────────────────────────────────
 .kiro/
 
+# ── Supabase ──────────────────────────────────────────────────
+supabase/.temp/
+.supabase/
+
 # ── Test / coverage artifacts ─────────────────────────────────
 .pytest_cache/
 .coverage

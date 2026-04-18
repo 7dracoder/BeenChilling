@@ -1,6 +1,8 @@
-"""Seed sample recipes into the database on first startup."""
+"""Seed sample recipes into Supabase on first startup."""
 import json
-from fridge_observer.db import get_db
+import logging
+
+logger = logging.getLogger(__name__)
 
 SAMPLE_RECIPES = [
     {
@@ -274,41 +276,40 @@ SAMPLE_RECIPES = [
 
 async def seed_recipes() -> None:
     """Seed sample recipes if the recipes table is empty."""
-    async with get_db() as db:
-        cursor = await db.execute("SELECT COUNT(*) FROM recipes")
-        row = await cursor.fetchone()
-        count = row[0] if row else 0
+    try:
+        from fridge_observer.supabase_client import get_supabase
+        sb = get_supabase()
 
-        if count > 0:
+        result = sb.table("recipes").select("id", count="exact").limit(1).execute()
+        if result.count and result.count > 0:
             return  # Already seeded
 
         for recipe_data in SAMPLE_RECIPES:
             ingredients = recipe_data.pop("ingredients")
-            dietary_tags = json.dumps(recipe_data["dietary_tags"])
 
-            cursor = await db.execute(
-                """INSERT INTO recipes (name, description, cuisine, dietary_tags, prep_minutes, instructions, image_url)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    recipe_data["name"],
-                    recipe_data["description"],
-                    recipe_data["cuisine"],
-                    dietary_tags,
-                    recipe_data["prep_minutes"],
-                    recipe_data["instructions"],
-                    recipe_data.get("image_url"),
-                ),
-            )
-            recipe_id = cursor.lastrowid
+            recipe_result = sb.table("recipes").insert({
+                "name": recipe_data["name"],
+                "description": recipe_data["description"],
+                "cuisine": recipe_data["cuisine"],
+                "dietary_tags": recipe_data["dietary_tags"],
+                "prep_minutes": recipe_data["prep_minutes"],
+                "instructions": recipe_data["instructions"],
+                "image_url": recipe_data.get("image_url"),
+            }).execute()
 
-            for ing in ingredients:
-                await db.execute(
-                    """INSERT INTO recipe_ingredients (recipe_id, name, category, is_pantry_staple)
-                       VALUES (?, ?, ?, ?)""",
-                    (recipe_id, ing["name"], ing.get("category"), ing.get("is_pantry_staple", 0)),
-                )
+            if recipe_result.data:
+                recipe_id = recipe_result.data[0]["id"]
+                for ing in ingredients:
+                    sb.table("recipe_ingredients").insert({
+                        "recipe_id": recipe_id,
+                        "name": ing["name"],
+                        "category": ing.get("category"),
+                        "is_pantry_staple": bool(ing.get("is_pantry_staple", 0)),
+                    }).execute()
 
-            # Restore ingredients for next iteration
             recipe_data["ingredients"] = ingredients
 
-        await db.commit()
+        logger.info("Seeded %d recipes into Supabase", len(SAMPLE_RECIPES))
+
+    except Exception as exc:
+        logger.warning("Recipe seeding skipped: %s", exc)

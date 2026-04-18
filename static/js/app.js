@@ -43,7 +43,7 @@ window.showToast = showToast;
 
 // ── Navigation ───────────────────────────────────────────────
 
-const SECTIONS = ['inventory', 'recipes', 'notifications', 'settings'];
+const SECTIONS = ['inventory', 'recipes', 'notifications', 'settings', 'sustainability'];
 let _activeSection = 'inventory';
 let _sectionInitialized = {};
 
@@ -76,6 +76,7 @@ function navigateTo(section) {
     recipes: '🍳 Recipes',
     notifications: '🔔 Notifications',
     settings: '⚙️ Settings',
+    sustainability: '🌿 EcoScan',
   };
   const headerTitle = document.querySelector('.content-header-title');
   if (headerTitle) headerTitle.textContent = titles[section] || section;
@@ -103,6 +104,9 @@ function initSection(section) {
       break;
     case 'settings':
       if (window.settingsModule) window.settingsModule.initSettings();
+      break;
+    case 'sustainability':
+      if (window.sustainabilityModule) window.sustainabilityModule.initSustainability();
       break;
   }
 }
@@ -150,6 +154,37 @@ function initConnectionBanner() {
 
 // ── App Initialization ───────────────────────────────────────
 
+async function initAuth() {
+  try {
+    const res = await fetch('/auth/me', { credentials: 'include' });
+    if (!res.ok) {
+      window.location.href = '/login';
+      return false;
+    }
+    const user = await res.json();
+    // Show user name in sidebar
+    const userEl = document.getElementById('sidebar-user');
+    const nameEl = document.getElementById('sidebar-user-name');
+    if (userEl && nameEl) {
+      nameEl.textContent = user.display_name || user.email;
+      userEl.style.display = 'block';
+    }
+    return true;
+  } catch {
+    window.location.href = '/login';
+    return false;
+  }
+}
+
+function initLogout() {
+  const btn = document.getElementById('logout-btn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    window.location.href = '/login';
+  });
+}
+
 function initApp() {
   // Set up navigation
   document.querySelectorAll('.nav-item, .tab-item').forEach(item => {
@@ -186,7 +221,10 @@ function initApp() {
 
 // Start the app when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
+  document.addEventListener('DOMContentLoaded', async () => {
+    const authed = await initAuth();
+    if (authed) { initLogout(); initApp(); }
+  });
 } else {
-  initApp();
+  initAuth().then(authed => { if (authed) { initLogout(); initApp(); } });
 }

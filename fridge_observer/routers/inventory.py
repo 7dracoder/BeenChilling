@@ -1,41 +1,20 @@
-"""Inventory REST API router."""
-import json
+"""Inventory REST API — backed by Supabase Postgres."""
 import logging
 from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends, Cookie
 
-from fridge_observer.db import get_db
 from fridge_observer.models import FoodItem, FoodItemCreate, FoodItemUpdate
+from fridge_observer.supabase_client import get_supabase
+from fridge_observer.routers.auth_router import get_current_user
 from fridge_observer.config import get_settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
 
-async def _get_all_items_raw(db) -> list[dict]:
-    """Fetch all inventory items as raw dicts."""
-    cursor = await db.execute(
-        "SELECT id, name, category, quantity, expiry_date, expiry_source, added_at, thumbnail, notes "
-        "FROM food_items ORDER BY added_at DESC"
-    )
-    rows = await cursor.fetchall()
-    return [dict(row) for row in rows]
-
-
-async def _broadcast_inventory_update(db) -> None:
-    """Broadcast current inventory to all WebSocket clients."""
-    try:
-        from fridge_observer.ws_manager import manager
-        items = await _get_all_items_raw(db)
-        await manager.broadcast_inventory_update(items)
-    except Exception as exc:
-        logger.warning("Failed to broadcast inventory update: %s", exc)
-
-
 def _row_to_food_item(row: dict, threshold: int = 3) -> FoodItem:
-    """Convert a DB row dict to a FoodItem model."""
     expiry_date = None
     if row.get("expiry_date"):
         try:
@@ -46,7 +25,7 @@ def _row_to_food_item(row: dict, threshold: int = 3) -> FoodItem:
     added_at = row.get("added_at")
     if isinstance(added_at, str):
         try:
-            added_at = datetime.fromisoformat(added_at)
+            added_at = datetime.fromisoformat(added_at.replace("Z", "+00:00"))
         except (ValueError, TypeError):
             added_at = datetime.now()
 
@@ -66,170 +45,148 @@ def _row_to_food_item(row: dict, threshold: int = 3) -> FoodItem:
     )
 
 
+async def _broadcast_inventory_update(user_id: str) -> None:
+    """Broadcast current inventory to all WebSocket clients."""
+    try:
+        from fridge_observer.ws_manager import manager
+        sb = get_supabase()
+        result = sb.table("food_items").select("*").eq("user_id", user_id).order("added_at", desc=True).execute()
+        items = result.data or []
+        await manager.broadcast_inventory_update(items)
+    except Exception as exc:
+        logger.warning("Failed to broadcast inventory update: %s", exc)
+
+
 @router.get("", response_model=list[FoodItem])
 async def get_inventory(
     category: Optional[str] = Query(None),
-    sort_by: Optional[str] = Query(None, pattern="^(expiry_date|added_at|name|quantity)$"),
-    sort_dir: Optional[str] = Query("asc", pattern="^(asc|desc)$"),
-    expiry_before: Optional[date] = Query(None),
-    expiry_after: Optional[date] = Query(None),
+    sort_by: Optional[str] = Query(None),
+    sort_dir: Optional[str] = Query("asc"),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Get all inventory items with optional filtering and sorting."""
     settings = get_settings()
+    sb = get_supabase()
 
-    query = (
-        "SELECT id, name, category, quantity, expiry_date, expiry_source, added_at, thumbnail, notes "
-        "FROM food_items WHERE 1=1"
-    )
-    params: list = []
+    query = sb.table("food_items").select("*").eq("user_id", current_user["sub"])
 
     if category:
-        query += " AND category = ?"
-        params.append(category)
+        query = query.eq("category", category)
 
-    if expiry_before:
-        query += " AND expiry_date IS NOT NULL AND expiry_date <= ?"
-        params.append(expiry_before.isoformat())
+    sort_column = sort_by if sort_by in ("expiry_date", "added_at", "name", "quantity") else "added_at"
+    query = query.order(sort_column, desc=(sort_dir == "desc"))
 
-    if expiry_after:
-        query += " AND expiry_date IS NOT NULL AND expiry_date >= ?"
-        params.append(expiry_after.isoformat())
-
-    # Sorting
-    sort_column = sort_by or "added_at"
-    direction = "DESC" if sort_dir == "desc" else "ASC"
-    query += f" ORDER BY {sort_column} {direction}"
-
-    async with get_db() as db:
-        cursor = await db.execute(query, params)
-        rows = await cursor.fetchall()
+    result = query.execute()
+    rows = result.data or []
 
     items = []
     for row in rows:
-        row_dict = dict(row)
-        cat = row_dict.get("category", "packaged_goods")
+        cat = row.get("category", "packaged_goods")
         threshold = settings.get_spoilage_threshold(cat)
-        items.append(_row_to_food_item(row_dict, threshold))
+        items.append(_row_to_food_item(row, threshold))
 
     return items
 
 
 @router.post("", response_model=FoodItem, status_code=201)
-async def create_inventory_item(item: FoodItemCreate):
-    """Add a new item to the inventory."""
+async def create_inventory_item(
+    item: FoodItemCreate,
+    current_user: dict = Depends(get_current_user),
+):
     settings = get_settings()
+    sb = get_supabase()
 
-    async with get_db() as db:
-        cursor = await db.execute(
-            """INSERT INTO food_items (name, category, quantity, expiry_date, expiry_source, notes)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (
-                item.name,
-                item.category.value,
-                item.quantity,
-                item.expiry_date.isoformat() if item.expiry_date else None,
-                item.expiry_source,
-                item.notes,
-            ),
-        )
-        item_id = cursor.lastrowid
-        await db.execute(
-            """INSERT INTO activity_log (item_id, item_name, action, source)
-               VALUES (?, ?, 'added', 'manual')""",
-            (item_id, item.name),
-        )
-        await db.commit()
+    data = {
+        "user_id": current_user["sub"],
+        "name": item.name,
+        "category": item.category.value,
+        "quantity": item.quantity,
+        "expiry_date": item.expiry_date.isoformat() if item.expiry_date else None,
+        "expiry_source": item.expiry_source,
+        "notes": item.notes,
+    }
 
-        cursor = await db.execute(
-            "SELECT id, name, category, quantity, expiry_date, expiry_source, added_at, thumbnail, notes "
-            "FROM food_items WHERE id = ?",
-            (item_id,),
-        )
-        row = await cursor.fetchone()
-        await _broadcast_inventory_update(db)
+    result = sb.table("food_items").insert(data).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create item")
+
+    row = result.data[0]
+
+    # Log activity
+    sb.table("activity_log").insert({
+        "user_id": current_user["sub"],
+        "item_id": row["id"],
+        "item_name": item.name,
+        "action": "added",
+        "source": "manual",
+    }).execute()
+
+    await _broadcast_inventory_update(current_user["sub"])
 
     threshold = settings.get_spoilage_threshold(item.category.value)
-    return _row_to_food_item(dict(row), threshold)
+    return _row_to_food_item(row, threshold)
 
 
 @router.patch("/{item_id}", response_model=FoodItem)
-async def update_inventory_item(item_id: int, patch: FoodItemUpdate):
-    """Update an existing inventory item."""
+async def update_inventory_item(
+    item_id: int,
+    patch: FoodItemUpdate,
+    current_user: dict = Depends(get_current_user),
+):
     settings = get_settings()
+    sb = get_supabase()
 
-    async with get_db() as db:
-        cursor = await db.execute(
-            "SELECT id, name, category, quantity, expiry_date, expiry_source, added_at, thumbnail, notes "
-            "FROM food_items WHERE id = ?",
-            (item_id,),
-        )
-        existing = await cursor.fetchone()
-        if not existing:
-            raise HTTPException(status_code=404, detail="Item not found")
+    # Verify ownership
+    existing = sb.table("food_items").select("*").eq("id", item_id).eq("user_id", current_user["sub"]).single().execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Item not found")
 
-        existing_dict = dict(existing)
-        updates: list[str] = []
-        params: list = []
+    updates = {}
+    if patch.name is not None: updates["name"] = patch.name
+    if patch.quantity is not None: updates["quantity"] = patch.quantity
+    if patch.expiry_date is not None: updates["expiry_date"] = patch.expiry_date.isoformat()
+    if patch.expiry_source is not None: updates["expiry_source"] = patch.expiry_source
+    if patch.notes is not None: updates["notes"] = patch.notes
 
-        if patch.name is not None:
-            updates.append("name = ?")
-            params.append(patch.name)
-        if patch.quantity is not None:
-            updates.append("quantity = ?")
-            params.append(patch.quantity)
-        if patch.expiry_date is not None:
-            updates.append("expiry_date = ?")
-            params.append(patch.expiry_date.isoformat())
-        if patch.expiry_source is not None:
-            updates.append("expiry_source = ?")
-            params.append(patch.expiry_source)
-        if patch.notes is not None:
-            updates.append("notes = ?")
-            params.append(patch.notes)
+    if updates:
+        result = sb.table("food_items").update(updates).eq("id", item_id).eq("user_id", current_user["sub"]).execute()
+        row = result.data[0] if result.data else existing.data
+    else:
+        row = existing.data
 
-        if updates:
-            params.append(item_id)
-            await db.execute(
-                f"UPDATE food_items SET {', '.join(updates)} WHERE id = ?",
-                params,
-            )
-            await db.execute(
-                """INSERT INTO activity_log (item_id, item_name, action, source)
-                   VALUES (?, ?, 'updated', 'manual')""",
-                (item_id, patch.name or existing_dict["name"]),
-            )
-            await db.commit()
+    sb.table("activity_log").insert({
+        "user_id": current_user["sub"],
+        "item_id": item_id,
+        "item_name": row.get("name", ""),
+        "action": "updated",
+        "source": "manual",
+    }).execute()
 
-        cursor = await db.execute(
-            "SELECT id, name, category, quantity, expiry_date, expiry_source, added_at, thumbnail, notes "
-            "FROM food_items WHERE id = ?",
-            (item_id,),
-        )
-        row = await cursor.fetchone()
-        await _broadcast_inventory_update(db)
+    await _broadcast_inventory_update(current_user["sub"])
 
-    row_dict = dict(row)
-    threshold = settings.get_spoilage_threshold(row_dict.get("category", "packaged_goods"))
-    return _row_to_food_item(row_dict, threshold)
+    threshold = settings.get_spoilage_threshold(row.get("category", "packaged_goods"))
+    return _row_to_food_item(row, threshold)
 
 
 @router.delete("/{item_id}", status_code=204)
-async def delete_inventory_item(item_id: int):
-    """Remove an item from the inventory."""
-    async with get_db() as db:
-        cursor = await db.execute(
-            "SELECT id, name FROM food_items WHERE id = ?", (item_id,)
-        )
-        existing = await cursor.fetchone()
-        if not existing:
-            raise HTTPException(status_code=404, detail="Item not found")
+async def delete_inventory_item(
+    item_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    sb = get_supabase()
 
-        item_name = existing["name"]
-        await db.execute("DELETE FROM food_items WHERE id = ?", (item_id,))
-        await db.execute(
-            """INSERT INTO activity_log (item_id, item_name, action, source)
-               VALUES (?, ?, 'removed', 'manual')""",
-            (item_id, item_name),
-        )
-        await db.commit()
-        await _broadcast_inventory_update(db)
+    existing = sb.table("food_items").select("id, name").eq("id", item_id).eq("user_id", current_user["sub"]).single().execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    item_name = existing.data["name"]
+    sb.table("food_items").delete().eq("id", item_id).eq("user_id", current_user["sub"]).execute()
+
+    sb.table("activity_log").insert({
+        "user_id": current_user["sub"],
+        "item_id": item_id,
+        "item_name": item_name,
+        "action": "removed",
+        "source": "manual",
+    }).execute()
+
+    await _broadcast_inventory_update(current_user["sub"])

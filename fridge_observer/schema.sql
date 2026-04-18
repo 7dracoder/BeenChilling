@@ -69,3 +69,24 @@ CREATE TABLE IF NOT EXISTS settings (
     key     TEXT PRIMARY KEY,
     value   TEXT NOT NULL
 );
+
+-- User accounts
+CREATE TABLE IF NOT EXISTS users (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    email        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    is_verified  INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    last_login   TEXT
+);
+
+-- Email OTP verification codes
+CREATE TABLE IF NOT EXISTS email_otps (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code       TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

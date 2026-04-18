@@ -270,3 +270,62 @@
   width: 100px;
   accent-color: var(--color-accent);
 }
+
+/* ── FLUX-generated recipe images ──────────────────────────── */
+.recipe-flux-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.recipe-card:hover .recipe-flux-img {
+  transform: scale(1.04);
+}
+
+.recipe-img-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  background: var(--color-surface-alt);
+}
+
+.flux-image-area {
+  overflow: hidden;
+  background: var(--color-surface-alt);
+  position: relative;
+}
+
+/* Loading shimmer while image generates */
+.flux-image-area img[src] {
+  animation: none;
+}
+
+.flux-image-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  z-index: 0;
+}
+
+.flux-image-area img,
+.flux-image-area span {
+  position: relative;
+  z-index: 1;
+}
+
+.flux-image-area img.loaded::before {
+  display: none;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

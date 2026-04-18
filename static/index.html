@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="/static/css/notifications.css" />
   <link rel="stylesheet" href="/static/css/settings.css" />
   <link rel="stylesheet" href="/static/css/ai-assistant.css" />
+  <link rel="stylesheet" href="/static/css/sustainability.css" />
 </head>
 <body>
 
@@ -61,12 +62,22 @@
           <span class="nav-label">Settings</span>
         </div>
       </li>
+      <li>
+        <div class="nav-item" data-section="sustainability" role="button" tabindex="0">
+          <span class="nav-icon" aria-hidden="true">🌿</span>
+          <span class="nav-label">EcoScan</span>
+        </div>
+      </li>
     </ul>
 
     <div class="sidebar-footer">
       <div class="flex items-center gap-2">
         <div class="connection-dot" title="Connecting..." aria-label="Connection status"></div>
         <small class="text-muted">Live updates</small>
+      </div>
+      <div class="sidebar-user" id="sidebar-user" style="margin-top:12px; display:none;">
+        <div class="sidebar-user-name" id="sidebar-user-name"></div>
+        <button class="sidebar-logout-btn" id="logout-btn" title="Sign out">Sign out</button>
       </div>
     </div>
   </nav>
@@ -458,6 +469,19 @@
       </div>
     </section>
 
+    <!-- ── Sustainability Blueprint Section ────────────── -->
+    <section id="section-sustainability" class="content-section" aria-label="Sustainability Blueprint">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🌿 EcoScan</h2>
+          <p class="section-subtitle">Sustainability analysis, eco alternatives, and product blueprints for your fridge items</p>
+        </div>
+      </div>
+      <div id="sustainability-content">
+        <div class="loading-container"><div class="spinner spinner-lg"></div></div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -478,6 +502,10 @@
   <div class="tab-item" data-section="settings" role="button" tabindex="0" aria-label="Settings">
     <span class="tab-icon" aria-hidden="true">⚙️</span>
     <span class="tab-label">Settings</span>
+  </div>
+  <div class="tab-item" data-section="sustainability" role="button" tabindex="0" aria-label="EcoScan">
+    <span class="tab-icon" aria-hidden="true">🌿</span>
+    <span class="tab-label">EcoScan</span>
   </div>
 </nav>
 
@@ -535,6 +563,7 @@
 <script src="/static/js/recipes.js"></script>
 <script src="/static/js/notifications.js"></script>
 <script src="/static/js/settings.js"></script>
+<script src="/static/js/sustainability.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/ai-assistant.js"></script>
 

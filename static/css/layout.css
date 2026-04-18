@@ -301,3 +301,39 @@
     padding: var(--space-8) var(--space-10);
   }
 }
+
+/* ── Sidebar user / logout ──────────────────────────────────── */
+.sidebar-user {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-logout-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-logout-btn:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-expired);
+  border-color: var(--color-expired);
+}

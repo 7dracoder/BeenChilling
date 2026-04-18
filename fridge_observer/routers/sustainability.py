@@ -170,26 +170,21 @@ Return JSON:
 
 
 @router.get("/blueprint-image")
-async def get_blueprint_image(product: str):
+async def get_blueprint_image(product: str, current_user: dict = Depends(get_current_user)):
     """
-    Generate a product blueprint image using Gemini image generation.
-    API key slot — returns placeholder when key not configured.
+    Generate a product sustainability blueprint image using FLUX.1-schnell.
+    Falls back to SVG placeholder if HF token not configured.
     """
-    import os
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-
-    if not gemini_key:
-        # Return a placeholder SVG blueprint
-        svg = _generate_placeholder_svg(product)
-        from fastapi.responses import Response
-        return Response(content=svg, media_type="image/svg+xml")
-
-    # TODO: Implement Gemini image generation when API key is available
-    # The Banana Pi BPI-M2 Zero (Nano Banana Pro 3) will be used as the
-    # compute unit for generating product blueprint visualisations
-    svg = _generate_placeholder_svg(product)
+    from fridge_observer.image_gen import generate_blueprint_image
     from fastapi.responses import Response
-    return Response(content=svg, media_type="image/svg+xml")
+
+    image_bytes = await generate_blueprint_image(product)
+    if image_bytes:
+        return Response(content=image_bytes, media_type="image/jpeg")
+
+    # SVG placeholder
+    svg = _generate_placeholder_svg(product)
+    return Response(content=svg.encode(), media_type="image/svg+xml")
 
 
 def _generate_placeholder_svg(product: str) -> str:

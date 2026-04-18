@@ -1,6 +1,6 @@
-"""Application configuration loaded from the database settings table."""
-from dataclasses import dataclass, field
-from fridge_observer.db import get_db
+"""Application configuration — loaded from Supabase settings table."""
+import os
+from dataclasses import dataclass
 
 
 @dataclass
@@ -19,40 +19,45 @@ class Settings:
     shopping_list_webhook_url: str = ""
 
     def get_spoilage_threshold(self, category: str) -> int:
-        """Return the spoilage threshold for a given food category."""
-        attr = f"spoilage_threshold_{category}"
-        return getattr(self, attr, 3)
+        return getattr(self, f"spoilage_threshold_{category}", 3)
 
 
-# Global settings instance
+# Global default settings (used when no user context)
 _settings: Settings = Settings()
 
 
 def get_settings() -> Settings:
-    """Return the current settings instance."""
     return _settings
 
 
 async def reload() -> None:
-    """Reload settings from the database."""
+    """Load default settings on startup."""
     global _settings
-    async with get_db() as db:
-        cursor = await db.execute("SELECT key, value FROM settings")
-        rows = await cursor.fetchall()
-        data: dict[str, str] = {row["key"]: row["value"] for row in rows}
+    _settings = Settings()
 
-    new_settings = Settings(
-        spoilage_threshold_fruits=int(data.get("spoilage_threshold_fruits", "3")),
-        spoilage_threshold_vegetables=int(data.get("spoilage_threshold_vegetables", "2")),
-        spoilage_threshold_dairy=int(data.get("spoilage_threshold_dairy", "3")),
-        spoilage_threshold_beverages=int(data.get("spoilage_threshold_beverages", "5")),
-        spoilage_threshold_meat=int(data.get("spoilage_threshold_meat", "1")),
-        spoilage_threshold_packaged_goods=int(data.get("spoilage_threshold_packaged_goods", "7")),
-        temp_threshold_fridge=float(data.get("temp_threshold_fridge", "8.0")),
-        temp_threshold_freezer=float(data.get("temp_threshold_freezer", "-15.0")),
-        shopping_list_enabled=data.get("shopping_list_enabled", "true").lower() == "true",
-        echo_dot_enabled=data.get("echo_dot_enabled", "true").lower() == "true",
-        gamification_enabled=data.get("gamification_enabled", "false").lower() == "true",
-        shopping_list_webhook_url=data.get("shopping_list_webhook_url", ""),
-    )
-    _settings = new_settings
+
+async def reload_for_user(user_id: str) -> Settings:
+    """Load settings for a specific user from Supabase."""
+    try:
+        from fridge_observer.supabase_client import get_supabase
+        sb = get_supabase()
+        result = sb.table("settings").select("key, value").eq("user_id", user_id).execute()
+        rows = result.data or []
+        data = {row["key"]: row["value"] for row in rows}
+
+        return Settings(
+            spoilage_threshold_fruits=int(data.get("spoilage_threshold_fruits", "3")),
+            spoilage_threshold_vegetables=int(data.get("spoilage_threshold_vegetables", "2")),
+            spoilage_threshold_dairy=int(data.get("spoilage_threshold_dairy", "3")),
+            spoilage_threshold_beverages=int(data.get("spoilage_threshold_beverages", "5")),
+            spoilage_threshold_meat=int(data.get("spoilage_threshold_meat", "1")),
+            spoilage_threshold_packaged_goods=int(data.get("spoilage_threshold_packaged_goods", "7")),
+            temp_threshold_fridge=float(data.get("temp_threshold_fridge", "8.0")),
+            temp_threshold_freezer=float(data.get("temp_threshold_freezer", "-15.0")),
+            shopping_list_enabled=data.get("shopping_list_enabled", "true").lower() == "true",
+            echo_dot_enabled=data.get("echo_dot_enabled", "true").lower() == "true",
+            gamification_enabled=data.get("gamification_enabled", "false").lower() == "true",
+            shopping_list_webhook_url=data.get("shopping_list_webhook_url", ""),
+        )
+    except Exception:
+        return Settings()

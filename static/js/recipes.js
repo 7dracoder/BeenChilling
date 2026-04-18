@@ -104,10 +104,20 @@ function renderRecipeCard(scoredRecipe) {
   const prepTime = recipe.prep_minutes ? `⏱ ${recipe.prep_minutes} min` : '';
   const cuisine = recipe.cuisine ? `🌍 ${recipe.cuisine}` : '';
 
+  // Use FLUX-generated image, lazy-loaded
+  const imgUrl = `/api/ai/recipe-image?name=${encodeURIComponent(recipe.name)}&cuisine=${encodeURIComponent(recipe.cuisine || '')}`;
+
   return `
     <div class="recipe-card">
-      <div class="recipe-image-area">
-        <span aria-hidden="true">${emoji}</span>
+      <div class="recipe-image-area flux-image-area" data-img-url="${imgUrl}">
+        <img
+          src="${imgUrl}"
+          alt="${escapeHtml(recipe.name)}"
+          class="recipe-flux-img"
+          loading="lazy"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <span class="recipe-img-fallback" aria-hidden="true" style="display:none;">${emoji}</span>
         ${urgency_score > 0 ? `
           <div class="urgency-badge ${urgencyLevel}">
             🔥 ${scoreDisplay}

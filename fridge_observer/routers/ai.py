@@ -20,6 +20,19 @@ from fridge_observer.ai_client import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
+ANSWER_SEP = "---ANSWER---"
+
+def _extract_answer(text: str) -> str:
+    """Extract the answer after ---ANSWER--- separator, or return cleaned full text."""
+    if ANSWER_SEP in text:
+        # Use the LAST occurrence — K2 sometimes repeats the separator in its reasoning
+        return text.rsplit(ANSWER_SEP, 1)[1].strip()
+    # Fallback: return the last non-empty paragraph (most likely the actual answer)
+    paragraphs = [p.strip() for p in text.strip().split("\n\n") if p.strip()]
+    if paragraphs:
+        return paragraphs[-1]
+    return text.strip()
+
 
 # ── Request / Response models ─────────────────────────────────
 
@@ -56,36 +69,42 @@ async def _get_inventory() -> list[dict]:
 async def ask_ai(body: AskRequest):
     """
     General-purpose AI Q&A with inventory context.
-    Streams the K2-Think response as Server-Sent Events.
+    Collects the full K2 response, strips reasoning, then streams the clean answer.
     """
     inventory = await _get_inventory()
 
     async def generate():
         try:
-            from fridge_observer.ai_client import k2_ask, build_inventory_context
-            from fridge_observer.ai_client import k2_chat_stream
+            from fridge_observer.ai_client import k2_chat, build_inventory_context
             context = build_inventory_context(inventory)
             messages = [
                 {
                     "role": "system",
                     "content": (
-                        "You are a helpful smart fridge assistant. You have access to the user's "
-                        "current fridge inventory and can answer questions about food, recipes, "
-                        "storage, nutrition, and reducing food waste. Be concise and helpful. "
-                        "Format your response in plain text — no markdown headers, just clean readable text."
+                        "You are a helpful smart fridge assistant with access to the user's fridge inventory. "
+                        "Answer questions about food, recipes, storage, and reducing waste. "
+                        "Be friendly and concise. Plain text only — no markdown.\n\n"
+                        "FORMAT: Write your final answer after the separator '---ANSWER---'. "
+                        "Example:\n---ANSWER---\nHello! How can I help you today?"
                     ),
                 },
                 {
                     "role": "user",
-                    "content": f"{context}\n\nUser question: {body.question}",
+                    "content": f"{context}\n\n{body.question}",
                 },
             ]
-            async for token in k2_chat_stream(messages):
-                yield f"data: {token}\n\n"
+            full_response = await k2_chat(messages, stream=False)
+            # Extract answer after separator if present
+            answer = _extract_answer(full_response)
+            # Stream it word by word for a natural feel
+            words = answer.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as exc:
             logger.error("K2 ask error: %s", exc)
-            yield f"data: Sorry, I couldn't process that request. ({exc})\n\n"
+            yield f"data: Sorry, I couldn't process that request.\n\n"
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -93,45 +112,44 @@ async def ask_ai(body: AskRequest):
 
 @router.post("/suggest-recipes")
 async def suggest_recipes(body: AskRequest):
-    """
-    Ask K2 to suggest recipes based on current inventory, prioritising expiring items.
-    Streams the response as Server-Sent Events.
-    """
+    """Ask K2 to suggest recipes based on current inventory."""
     inventory = await _get_inventory()
 
     async def generate():
         try:
-            from fridge_observer.ai_client import k2_chat_stream, build_inventory_context
+            from fridge_observer.ai_client import k2_chat, build_inventory_context
             context = build_inventory_context(inventory)
             pref_str = f"\nUser preferences: {body.preferences}" if body.preferences else ""
             messages = [
                 {
                     "role": "system",
                     "content": (
-                        "You are a helpful culinary assistant for a smart fridge app. "
-                        "Your goal is to help users reduce food waste by suggesting recipes "
-                        "that use ingredients that are expiring soon. "
-                        "Be concise, practical, and enthusiastic about cooking. "
-                        "Format your response clearly with recipe names as titles, "
-                        "followed by a brief description and key steps. No markdown symbols."
+                        "You are a culinary assistant for a smart fridge app. "
+                        "Suggest recipes that use ingredients expiring soonest. "
+                        "Be concise and practical. Plain text only.\n\n"
+                        f"FORMAT: Write your final answer after '{ANSWER_SEP}'. "
+                        f"Example:\n{ANSWER_SEP}\n1. Pasta Primavera — uses your zucchini..."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
                         f"{context}{pref_str}\n\n"
-                        "Please suggest 3 recipes I can make with these ingredients, "
-                        "prioritising items that expire soonest. "
-                        "For each recipe, briefly explain what to do and which expiring items it uses."
+                        "Suggest 3 recipes using ingredients that expire soonest. "
+                        "For each, give the name, what expiring items it uses, and 2-3 key steps."
                     ),
                 },
             ]
-            async for token in k2_chat_stream(messages):
-                yield f"data: {token}\n\n"
+            full_response = await k2_chat(messages, stream=False)
+            answer = _extract_answer(full_response)
+            words = answer.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as exc:
             logger.error("K2 suggest-recipes error: %s", exc)
-            yield f"data: Sorry, I couldn't generate recipe suggestions. ({exc})\n\n"
+            yield f"data: Sorry, I couldn't generate recipe suggestions.\n\n"
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -162,6 +180,12 @@ async def identify_food(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Image too large (max 10MB).")
 
     result = await gemini_identify_food(image_bytes, mime_type=file.content_type or "image/jpeg")
+
+    if result.get("error") == "rate_limit":
+        raise HTTPException(status_code=429, detail=result.get("message", "Rate limit reached. Try again shortly."))
+    if result.get("error") in ("auth_error", "bad_request"):
+        raise HTTPException(status_code=502, detail=result.get("message", "Gemini API error."))
+
     return IdentifyResponse(
         items=result.get("items", []),
         raw=result.get("raw", ""),
@@ -171,25 +195,21 @@ async def identify_food(file: UploadFile = File(...)):
 
 @router.get("/inventory-summary")
 async def inventory_summary():
-    """
-    Ask K2 to analyse the current inventory and provide a smart summary:
-    what's expiring, what to use first, and any waste-reduction tips.
-    Streams as SSE.
-    """
+    """Ask K2 to analyse the current inventory and provide a smart summary."""
     inventory = await _get_inventory()
 
     async def generate():
         try:
-            from fridge_observer.ai_client import k2_chat_stream, build_inventory_context
+            from fridge_observer.ai_client import k2_chat, build_inventory_context
             context = build_inventory_context(inventory)
             messages = [
                 {
                     "role": "system",
                     "content": (
-                        "You are a smart fridge assistant helping users reduce food waste. "
-                        "Analyse the inventory and give a brief, friendly summary. "
-                        "Highlight what needs to be used soon, suggest priorities, "
-                        "and give one practical tip. Keep it under 150 words. No markdown."
+                        "You are a smart fridge assistant. Give a brief, friendly fridge summary. "
+                        "Highlight what needs to be used soon and give one practical tip. "
+                        "Under 100 words. Plain text only.\n\n"
+                        f"FORMAT: Write your final answer after '{ANSWER_SEP}'.\n{ANSWER_SEP}\n[your answer]"
                     ),
                 },
                 {
@@ -197,12 +217,56 @@ async def inventory_summary():
                     "content": f"{context}\n\nGive me a quick summary of my fridge situation.",
                 },
             ]
-            async for token in k2_chat_stream(messages):
-                yield f"data: {token}\n\n"
+            full_response = await k2_chat(messages, stream=False)
+            answer = _extract_answer(full_response)
+            words = answer.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as exc:
             logger.error("K2 inventory-summary error: %s", exc)
-            yield f"data: Unable to generate summary. ({exc})\n\n"
+            yield f"data: Unable to generate summary.\n\n"
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ── Image generation endpoints ────────────────────────────────
+
+@router.get("/recipe-image")
+async def get_recipe_image(name: str, cuisine: str = ""):
+    """Generate a recipe food photo using FLUX.1-schnell."""
+    from fridge_observer.image_gen import generate_recipe_image, image_to_data_url
+    from fastapi.responses import Response
+
+    image_bytes = await generate_recipe_image(name, cuisine)
+    if image_bytes:
+        return Response(content=image_bytes, media_type="image/jpeg")
+
+    # Return SVG placeholder if generation fails
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#EBF3EE" rx="16"/>
+  <text x="256" y="240" text-anchor="middle" font-family="Inter,sans-serif" font-size="64">🍽️</text>
+  <text x="256" y="300" text-anchor="middle" font-family="Inter,sans-serif" font-size="18" fill="#4A7C59">{name[:30]}</text>
+</svg>"""
+    return Response(content=svg.encode(), media_type="image/svg+xml")
+
+
+@router.get("/food-image")
+async def get_food_image(name: str, category: str = ""):
+    """Generate a food item image using FLUX.1-schnell."""
+    from fridge_observer.image_gen import generate_food_item_image
+    from fastapi.responses import Response
+
+    image_bytes = await generate_food_item_image(name, category)
+    if image_bytes:
+        return Response(content=image_bytes, media_type="image/jpeg")
+
+    cat_emoji = {"fruits": "🍎", "vegetables": "🥦", "dairy": "🧀", "beverages": "🥤", "meat": "🥩", "packaged_goods": "📦"}.get(category, "🍽️")
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" fill="#F4F3EF" rx="12"/>
+  <text x="128" y="140" text-anchor="middle" font-family="Inter,sans-serif" font-size="80">{cat_emoji}</text>
+  <text x="128" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="14" fill="#6B6860">{name[:20]}</text>
+</svg>"""
+    return Response(content=svg.encode(), media_type="image/svg+xml")

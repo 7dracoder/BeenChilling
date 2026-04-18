@@ -1,4 +1,4 @@
-"""FastAPI application entry point."""
+"""FastAPI application entry point — Supabase backend."""
 import json
 import logging
 import os
@@ -10,18 +10,19 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass  # python-dotenv not installed; rely on real env vars
+    pass
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Cookie
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from fridge_observer.db import init_db
-from fridge_observer.seed_settings import seed_settings
-from fridge_observer.seed_recipes import seed_recipes
 import fridge_observer.config as config_module
 from fridge_observer.ws_manager import manager
 from fridge_observer.routers import inventory, recipes, notifications, settings
 from fridge_observer.routers import ai as ai_router
+from fridge_observer.routers import auth_router
+from fridge_observer.routers import sustainability as sustainability_router
+from fridge_observer.seed_recipes import seed_recipes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,52 +31,57 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
+COOKIE_NAME = "fridge_session"
+
+
+def _is_valid_session(token: str | None) -> bool:
+    """Check if a Supabase JWT session token is valid."""
+    if not token:
+        return False
+    try:
+        from fridge_observer.supabase_client import get_supabase
+        sb = get_supabase()
+        result = sb.auth.get_user(token)
+        return result is not None and result.user is not None
+    except Exception:
+        return False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: startup and shutdown tasks."""
-    logger.info("Starting Fridge Observer...")
+    logger.info("Starting Fridge Observer (Supabase backend)...")
 
-    # Initialize database and schema
-    await init_db()
-    logger.info("Database initialized.")
-
-    # Seed default settings
-    await seed_settings()
-    logger.info("Settings seeded.")
-
-    # Seed sample recipes
-    await seed_recipes()
-    logger.info("Recipes seeded.")
-
-    # Load configuration from DB
+    # Load default config
     await config_module.reload()
     logger.info("Configuration loaded.")
 
-    yield
+    # Seed recipes into Supabase if empty
+    await seed_recipes()
+    logger.info("Recipes ready.")
 
+    yield
     logger.info("Shutting down Fridge Observer.")
 
 
 app = FastAPI(
     title="Fridge Observer",
     description="Smart fridge monitoring system API",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
 # Include routers
+app.include_router(auth_router.router)
 app.include_router(inventory.router)
 app.include_router(recipes.router)
 app.include_router(notifications.router)
 app.include_router(settings.router)
 app.include_router(ai_router.router)
+app.include_router(sustainability_router.router)
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time inventory updates."""
     await manager.connect(websocket)
     try:
         while True:
@@ -93,23 +99,32 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
-# Mount static files (must be after routes to avoid conflicts)
+# Static files + page routing
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-    # Serve index.html at root
-    from fastapi.responses import FileResponse
-
     @app.get("/")
-    async def serve_index():
-        index_path = STATIC_DIR / "index.html"
-        if index_path.exists():
-            return FileResponse(str(index_path))
-        return {"message": "Fridge Observer API is running. Static files not found."}
+    async def serve_root(fridge_session: str = Cookie(default=None)):
+        if _is_valid_session(fridge_session):
+            return FileResponse(str(STATIC_DIR / "index.html"))
+        return RedirectResponse(url="/login", status_code=302)
+
+    @app.get("/login")
+    async def serve_login(fridge_session: str = Cookie(default=None)):
+        if _is_valid_session(fridge_session):
+            return RedirectResponse(url="/", status_code=302)
+        return FileResponse(str(STATIC_DIR / "login.html"))
+
+    @app.get("/signup")
+    async def serve_signup(fridge_session: str = Cookie(default=None)):
+        if _is_valid_session(fridge_session):
+            return RedirectResponse(url="/", status_code=302)
+        return FileResponse(str(STATIC_DIR / "login.html"))
+
 else:
     @app.get("/")
     async def root():
-        return {"message": "Fridge Observer API is running."}
+        return {"message": "Fridge Observer API running."}
 
 
 if __name__ == "__main__":
