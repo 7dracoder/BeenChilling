@@ -61,14 +61,16 @@ Open http://localhost:8000
 
 ## Deployment
 
-Deploy everything (backend + frontend + database) to Digital Ocean in 30 minutes:
+Deploy everything **FREE** using Render.com in 10 minutes:
 
 ```bash
-# Follow the quick deployment guide
-cat QUICK_DEPLOY.md
+# Follow the deployment guide
+cat DEPLOY.md
 ```
 
-**Cost**: $18/month for everything (4GB RAM droplet recommended)
+**Cost**: FREE (Render.com free tier + Supabase free tier)
+
+**Note**: Free tier sleeps after 15 min inactivity. First request takes ~30 seconds to wake up.
 
 ## Hardware Setup
 
@@ -103,8 +105,8 @@ python test_hardware_integration.py
 
 ## Documentation
 
-- `QUICK_DEPLOY.md` - 30-minute deployment guide for Digital Ocean
-- `RASPBERRY_PI_SETUP.md` - Hardware setup and configuration
+- `DEPLOY.md` - Free deployment guide for Render.com
+- `RASPBERRY_PI_CONFIG.md` - Hardware setup and WiFi configuration
 - `.env.example` - Environment variables reference
 
 ## License
