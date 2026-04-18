@@ -6,14 +6,14 @@ websockets==12.0
 
 # Database
 aiosqlite==0.19.0
-supabase==2.3.0
+supabase==2.9.0
 
 # Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
 # AI and ML
-httpx==0.24.1
+httpx==0.27.2
 google-generativeai==0.3.2
 replicate==0.22.0
 
