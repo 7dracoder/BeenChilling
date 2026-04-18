@@ -25,7 +25,7 @@ class AIAssistant {
     this._overlay = document.getElementById('ai-overlay');
 
     this._bindEvents();
-    this._showWelcome();
+    this._messages.innerHTML = '';
   }
 
   // ── HTML Injection ──────────────────────────────────────────
@@ -53,8 +53,7 @@ class AIAssistant {
       <div class="ai-panel-header">
         <div class="ai-panel-icon">✨</div>
         <div class="ai-panel-title">
-          <h3>Fridge AI</h3>
-          <p>Powered by K2-Think</p>
+          <h3>Assistant</h3>
         </div>
         <button class="ai-panel-close" id="ai-panel-close" aria-label="Close AI panel">×</button>
       </div>
@@ -168,13 +167,7 @@ class AIAssistant {
   // ── Welcome message ─────────────────────────────────────────
 
   _showWelcome() {
-    this._messages.innerHTML = `
-      <div class="ai-welcome">
-        <div class="ai-welcome-icon">🤖</div>
-        <h4>Hi! I'm your Fridge AI</h4>
-        <p>Ask me anything about your food — what to cook, what's expiring, storage tips, or just get a quick fridge summary.</p>
-      </div>
-    `;
+    this._messages.innerHTML = '';
   }
 
   // ── Message rendering ────────────────────────────────────────

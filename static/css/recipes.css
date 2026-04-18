@@ -403,3 +403,179 @@
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ── Recipe Detail Modal ────────────────────────────────────── */
+.recipe-detail-modal {
+  max-width: 600px;
+  width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.recipe-detail-modal .modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: var(--space-5);
+}
+
+.recipe-detail-hero {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  display: block;
+}
+
+.recipe-detail-meta {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.recipe-detail-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.recipe-detail-meta-item strong {
+  color: var(--color-text-primary);
+}
+
+.recipe-detail-section {
+  margin-bottom: var(--space-5);
+}
+
+.recipe-detail-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+  margin-bottom: var(--space-3);
+}
+
+/* Ingredients list */
+.recipe-ingredients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recipe-ingredient-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+}
+
+.recipe-ingredient-name {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.recipe-ingredient-qty {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.recipe-ingredient-row.expiring {
+  border-left: 3px solid var(--color-warning);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.recipe-ingredient-row.pantry {
+  opacity: 0.6;
+}
+
+/* Instructions */
+.recipe-instructions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  counter-reset: step;
+}
+
+.recipe-step {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.recipe-step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.recipe-step-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  flex: 1;
+}
+
+/* Tags in modal */
+.recipe-detail-tags {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+/* ── Recipe detail modal image ──────────────────────────────── */
+.recipe-detail-img-container {
+  width: 100%;
+  height: 200px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  overflow: hidden;
+  background: var(--color-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.recipe-detail-img-container .recipe-detail-hero {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  margin: 0;
+}
+
+.recipe-detail-img-container .recipe-detail-img-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recipe-detail-img-container .recipe-img-placeholder-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--color-text-muted);
+  opacity: 0.3;
+}

@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: var(--color-bg);
+  background: transparent;
 }
 
 /* ── Top Navigation Bar ───────────────────────────────────── */
@@ -18,13 +18,17 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: 0 var(--space-5);
-  height: 60px;
-  background: var(--glass-bg);
+  height: 66px;
+  width: min(1380px, calc(100% - 18px));
+  margin: 10px auto 0;
+  background: linear-gradient(180deg, rgba(20, 27, 38, 0.88), rgba(16, 22, 30, 0.78));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   position: sticky;
-  top: 0;
+  top: 8px;
   z-index: 200;
   flex-shrink: 0;
 }
@@ -53,7 +57,8 @@
   font-size: var(--text-md);
   font-weight: 700;
   color: var(--color-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -61,32 +66,36 @@
 .topbar-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: 9px 14px;
   border-radius: var(--radius-md);
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: all var(--transition-fast);
   color: var(--color-text-secondary);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   user-select: none;
   white-space: nowrap;
 }
 
 .nav-item:hover {
-  background: var(--color-surface-alt);
+  background: rgba(180, 194, 212, 0.1);
+  border-color: rgba(180, 194, 212, 0.26);
   color: var(--color-text-primary);
 }
 
 .nav-item.active {
-  background: var(--color-accent-light);
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(11, 136, 106, 0.2));
   color: var(--color-accent);
+  border-color: rgba(52, 211, 153, 0.34);
 }
 
 .nav-item.active .nav-icon {
@@ -235,6 +244,8 @@
 .main-content {
   flex: 1;
   min-height: 0;
+  width: min(1380px, calc(100% - 18px));
+  margin: 10px auto 0;
 }
 
 /* Connection status dot */
@@ -296,8 +307,8 @@
 /* Content sections */
 .content-section {
   display: none;
-  padding: var(--space-6) var(--space-5);
-  max-width: 1800px;
+  padding: var(--space-5) var(--space-3) var(--space-8);
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -325,7 +336,8 @@
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--color-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .section-subtitle {
@@ -420,20 +432,29 @@
 
 /* ── Dashboard Cards ───────────────────────────────────────── */
 .dash-card {
-  background: var(--glass-bg);
+  background: linear-gradient(180deg, rgba(20, 27, 38, 0.84), rgba(14, 20, 29, 0.82));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: var(--space-5);
   box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.dash-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-top: 1px solid rgba(237, 243, 250, 0.14);
 }
 
 .dash-card-header {
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--glass-border);
-  background: rgba(10, 22, 18, 0.4);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(9, 14, 22, 0.44);
 }
 
 .dash-card-title {
@@ -466,12 +487,12 @@
   right: 0;
   width: 380px;
   max-height: 520px;
-  background: rgba(10, 22, 18, 0.97);
+  background: rgba(13, 19, 28, 0.97);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: dropdownFadeIn 0.15s ease;
   z-index: 300;
@@ -530,8 +551,8 @@
 }
 
 .notif-card {
-  background: rgba(14, 30, 22, 0.5);
-  border: 1px solid var(--glass-border);
+  background: rgba(27, 35, 47, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   overflow: hidden;

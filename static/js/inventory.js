@@ -62,6 +62,18 @@ function renderInventoryGrid(items) {
   const statsEl = document.getElementById('inventory-stats');
   if (!grid) return;
 
+  // Sort: expired first, then expiring soon (ascending days), then no-expiry last
+  const sorted = [...items].sort((a, b) => {
+    const statusOrder = { expired: 0, warning: 1, ok: 2 };
+    const aOrder = statusOrder[a.expiry_status] ?? 3;
+    const bOrder = statusOrder[b.expiry_status] ?? 3;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    // Within same status, sort by days_until_expiry ascending
+    const aDays = a.days_until_expiry ?? 9999;
+    const bDays = b.days_until_expiry ?? 9999;
+    return aDays - bDays;
+  });
+
   // Update stats
   if (statsEl) {
     const total = items.length;
@@ -86,7 +98,6 @@ function renderInventoryGrid(items) {
   if (items.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">🥗</div>
         <div class="empty-state-title">Your fridge is empty</div>
         <div class="empty-state-text">Add items using the quick-add form above, or they'll appear automatically when detected.</div>
       </div>
@@ -94,14 +105,14 @@ function renderInventoryGrid(items) {
     return;
   }
 
-  grid.innerHTML = items.map(item => renderFoodCard(item)).join('');
+  grid.innerHTML = sorted.map(item => renderFoodCard(item)).join('');
 
   // Attach event listeners
   grid.querySelectorAll('.food-card').forEach(card => {
     const id = parseInt(card.dataset.id);
     card.addEventListener('click', (e) => {
       if (!e.target.closest('.food-card-actions')) {
-        openEditModal(items.find(i => i.id === id));
+        openEditModal(sorted.find(i => i.id === id));
       }
     });
   });
@@ -109,16 +120,14 @@ function renderInventoryGrid(items) {
   grid.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      deleteItem(id);
+      deleteItem(parseInt(btn.dataset.id));
     });
   });
 
   grid.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      openEditModal(items.find(i => i.id === id));
+      openEditModal(sorted.find(i => i.id === parseInt(btn.dataset.id)));
     });
   });
 }
@@ -170,8 +179,12 @@ function renderFoodCard(item) {
         <span class="badge ${badgeClass}">${badgeText}</span>
       </div>
       <div class="food-card-actions">
-        <button class="btn btn-ghost btn-sm edit-btn" data-id="${item.id}" aria-label="Edit ${item.name}">✏️</button>
-        <button class="btn btn-ghost btn-sm delete-btn" data-id="${item.id}" aria-label="Delete ${item.name}">🗑️</button>
+        <button class="btn btn-ghost btn-sm edit-btn" data-id="${item.id}" aria-label="Edit ${item.name}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm delete-btn" data-id="${item.id}" aria-label="Delete ${item.name}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
       </div>
     </div>
   `;

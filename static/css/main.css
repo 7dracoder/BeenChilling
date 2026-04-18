@@ -3,48 +3,48 @@
    main.css: CSS custom properties, reset, typography
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 /* ── Custom Properties ─────────────────────────────────────── */
 :root {
-  /* Deep Forest Dark Backgrounds */
-  --color-bg:           #0A1612; /* Deep forest night */
-  --color-surface:      rgba(14, 30, 22, 0.75); /* Forest glass */
-  --color-surface-alt:  #132A1E; /* Mossy undertone */
-  --color-surface-hover: rgba(28, 56, 40, 0.7);
-  --color-border:       rgba(255, 255, 255, 0.07);
+  /* Midnight editorial palette */
+  --color-bg:           #0D1218;
+  --color-surface:      rgba(18, 24, 33, 0.78);
+  --color-surface-alt:  #1A2230;
+  --color-surface-hover: #222C3C;
+  --color-border:       rgba(170, 188, 209, 0.18);
 
-  /* Nature Glass */
-  --glass-bg:           rgba(10, 22, 18, 0.72);
-  --glass-border:       rgba(52, 211, 153, 0.08);
+  /* Glass treatment */
+  --glass-bg:           rgba(16, 22, 30, 0.76);
+  --glass-border:       rgba(148, 163, 184, 0.16);
 
-  /* Text - Warm Contrast */
-  --color-text-primary:   #F0FDF4;
-  --color-text-secondary: #A7C4B5;
-  --color-text-muted:     #5E8A73;
+  /* Text */
+  --color-text-primary:   #EDF3FA;
+  --color-text-secondary: #B4C2D4;
+  --color-text-muted:     #8395AB;
 
   /* Expiry status */
   --color-ok:       #34D399; /* Bright leaf green */
   --color-warning:  #FBBF24; /* Warm amber */
   --color-expired:  #F87171; /* Soft coral red */
 
-  /* Accent — Leaf Green */
+  /* Accent kept intact for existing button look */
   --color-accent:       #34D399;
   --color-accent-light: rgba(52, 211, 153, 0.12);
   --color-accent-hover: #10B981;
 
-  /* Nature Gradients */
+  /* Gradients */
   --gradient-primary:   linear-gradient(135deg, #34D399 0%, #059669 100%);
   --gradient-warning:   linear-gradient(135deg, #FBBF24 0%, #D97706 100%);
   --gradient-expired:   linear-gradient(135deg, #F87171 0%, #DC2626 100%);
 
-  /* Organic Shadows */
-  --shadow-sm:  0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md:  0 4px 8px -1px rgba(0,0,0,0.6), 0 2px 4px -1px rgba(0,0,0,0.4);
-  --shadow-lg:  0 12px 24px -4px rgba(0,0,0,0.6), 0 4px 8px -2px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 20px rgba(52, 211, 153, 0.2);
-  --shadow-glow-warn: 0 0 20px rgba(251, 191, 36, 0.2);
-  --shadow-glow-err: 0 0 20px rgba(248, 113, 113, 0.2);
+  /* Shadows */
+  --shadow-sm:  0 6px 14px rgba(6, 10, 16, 0.32);
+  --shadow-md:  0 14px 30px rgba(5, 9, 14, 0.42);
+  --shadow-lg:  0 24px 48px rgba(4, 7, 11, 0.52);
+  --shadow-glow: 0 0 22px rgba(52, 211, 153, 0.2);
+  --shadow-glow-warn: 0 0 22px rgba(251, 191, 36, 0.2);
+  --shadow-glow-err: 0 0 22px rgba(248, 113, 113, 0.2);
 
   /* Spacing */
   --space-1: 4px;
@@ -57,11 +57,11 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  /* Border radius (squircle approach) */
-  --radius-sm:  8px;
-  --radius-md:  12px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
+  /* Border radius */
+  --radius-sm:  9px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --radius-xl:  28px;
   --radius-full: 9999px;
 
   /* Fluid Transitions */
@@ -71,8 +71,8 @@
   --transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Font sizes */
   --text-xs:   0.75rem; /* 12px */
@@ -104,8 +104,29 @@ body {
   line-height: 1.6;
   color: var(--color-text-primary);
   background-color: var(--color-bg);
+  background-image:
+    radial-gradient(1200px 640px at 92% -10%, rgba(52, 211, 153, 0.13), transparent 60%),
+    radial-gradient(860px 560px at -12% 112%, rgba(56, 189, 248, 0.11), transparent 62%),
+    linear-gradient(180deg, #111823 0%, #0D1218 45%, #0A0F15 100%);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.3;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 img, svg {
@@ -132,6 +153,11 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+::selection {
+  background: rgba(52, 211, 153, 0.35);
+  color: #F8FBFF;
 }
 
 ul, ol {

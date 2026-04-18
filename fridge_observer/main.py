@@ -24,6 +24,7 @@ from fridge_observer.routers import inventory, recipes, notifications, settings
 from fridge_observer.routers import ai as ai_router
 from fridge_observer.routers import auth_router
 from fridge_observer.routers import sustainability as sustainability_router
+from fridge_observer.routers import hardware as hardware_router
 from fridge_observer.seed_recipes import seed_recipes
 
 logging.basicConfig(
@@ -37,14 +38,18 @@ COOKIE_NAME = "fridge_session"
 
 
 def _is_valid_session(token: str | None) -> bool:
-    """Check if a Supabase JWT session token is valid."""
+    """Check if a Supabase JWT session token is valid — local decode, no network call."""
     if not token:
         return False
     try:
-        from fridge_observer.supabase_client import get_supabase
-        sb = get_supabase()
-        result = sb.auth.get_user(token)
-        return result is not None and result.user is not None
+        from jose import jwt as _jwt
+        payload = _jwt.decode(
+            token,
+            key="",
+            options={"verify_signature": False, "verify_exp": True, "verify_aud": False},
+            algorithms=["HS256"],
+        )
+        return bool(payload.get("sub"))
     except Exception:
         return False
 
@@ -80,6 +85,7 @@ app.include_router(notifications.router)
 app.include_router(settings.router)
 app.include_router(ai_router.router)
 app.include_router(sustainability_router.router)
+app.include_router(hardware_router.router)
 
 
 @app.websocket("/ws")

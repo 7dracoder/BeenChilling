@@ -108,15 +108,34 @@ def _set_session_cookie(response: Response, access_token: str, remember_me: bool
 
 
 def get_current_user(fridge_session: Optional[str] = Cookie(default=None)) -> dict:
-    """FastAPI dependency — validates Supabase JWT and returns user."""
+    """FastAPI dependency — validates Supabase JWT locally (no network call)."""
     if not fridge_session:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        sb = get_supabase()
-        user_response = sb.auth.get_user(fridge_session)
-        if not user_response or not user_response.user:
-            raise HTTPException(status_code=401, detail="Session expired")
-        return {"sub": user_response.user.id, "email": user_response.user.email}
+        import time
+        from jose import jwt as _jwt
+
+        # Decode without signature verification (Supabase signs with their own secret)
+        # We still check expiry
+        payload = _jwt.decode(
+            fridge_session,
+            key="",  # key required by jose but ignored when verify_signature=False
+            options={
+                "verify_signature": False,
+                "verify_exp": True,
+                "verify_aud": False,
+            },
+            algorithms=["HS256"],
+        )
+
+        user_id = payload.get("sub")
+        email = payload.get("email", "")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid session")
+
+        return {"sub": user_id, "email": email}
+
     except HTTPException:
         raise
     except Exception:

@@ -117,6 +117,17 @@ function renderRecipeCards(scoredRecipes) {
       await madeThis(parseInt(btn.dataset.id), btn.dataset.name);
     });
   });
+
+  // Click on card body opens detail modal
+  grid.querySelectorAll('.recipe-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.recipe-actions')) return;
+      const id = parseInt(card.dataset.id);
+      const name = card.dataset.name;
+      openRecipeModal(id, name);
+    });
+    card.style.cursor = 'pointer';
+  });
 }
 
 function renderRecipeCard(scoredRecipe) {
@@ -144,7 +155,7 @@ function renderRecipeCard(scoredRecipe) {
   const imgUrl = `/api/ai/recipe-image?name=${encodeURIComponent(recipe.name)}&cuisine=${encodeURIComponent(recipe.cuisine || '')}`;
 
   return `
-    <div class="recipe-card">
+    <div class="recipe-card" data-id="${recipe.id}" data-name="${escapeHtml(recipe.name)}">
       <div class="recipe-image-area flux-image-area">
         <img
           data-src="${imgUrl}"
@@ -224,6 +235,140 @@ async function refreshRecipes() {
   }
 }
 
+// ── Recipe Detail Modal ───────────────────────────────────────
+
+let _currentRecipeId = null;
+
+async function openRecipeModal(id, name) {
+  _currentRecipeId = id;
+  const modal = document.getElementById('recipe-modal');
+  const title = document.getElementById('recipe-modal-title');
+  const body = document.getElementById('recipe-modal-body');
+  if (!modal || !body) return;
+
+  title.textContent = name;
+  body.innerHTML = `<div class="loading-container" style="padding:40px;"><div class="spinner spinner-lg"></div><p style="margin-top:12px;color:var(--color-text-muted);font-size:13px;">Loading recipe details...</p></div>`;
+  modal.style.display = 'flex';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const res = await fetch(`/api/recipes/${id}/detail`, { credentials: 'include' });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    renderRecipeModal(data);
+  } catch {
+    body.innerHTML = `<div class="empty-state"><div class="empty-state-title">Could not load recipe details</div></div>`;
+  }
+}
+
+function renderRecipeModal(data) {
+  const body = document.getElementById('recipe-modal-body');
+  const title = document.getElementById('recipe-modal-title');
+  if (!body) return;
+
+  title.textContent = data.name;
+
+  const imgUrl = `/api/ai/recipe-image?name=${encodeURIComponent(data.name)}&cuisine=${encodeURIComponent(data.cuisine || '')}`;
+
+  const metaHtml = [
+    data.prep_minutes ? `<div class="recipe-detail-meta-item"><strong>${data.prep_minutes} min</strong> prep</div>` : '',
+    data.servings ? `<div class="recipe-detail-meta-item"><strong>${data.servings}</strong> servings</div>` : '',
+    data.cuisine ? `<div class="recipe-detail-meta-item"><strong>${escapeHtml(data.cuisine)}</strong></div>` : '',
+  ].filter(Boolean).join('');
+
+  const tagsHtml = (data.dietary_tags || []).length ? `
+    <div class="recipe-detail-tags">
+      ${data.dietary_tags.map(t => `<span class="recipe-tag">${escapeHtml(t)}</span>`).join('')}
+    </div>
+  ` : '';
+
+  const ingredientsHtml = (data.ingredients || []).map(ing => {
+    const qty = data.quantities?.[ing.name] || data.quantities?.[ing.name.toLowerCase()] || '';
+    const isExpiring = ing.expiry_status === 'warning' || ing.expiry_status === 'expired';
+    const isPantry = ing.is_pantry_staple;
+    const cls = isExpiring ? 'expiring' : isPantry ? 'pantry' : '';
+    return `
+      <div class="recipe-ingredient-row ${cls}">
+        <span class="recipe-ingredient-name">${escapeHtml(ing.name)}${isPantry ? ' <span style="font-size:11px;color:var(--color-text-muted)">(pantry)</span>' : ''}</span>
+        <span class="recipe-ingredient-qty">${escapeHtml(qty || '—')}</span>
+      </div>
+    `;
+  }).join('');
+
+  const stepsHtml = (data.steps || []).map((step, i) => `
+    <div class="recipe-step">
+      <div class="recipe-step-num">${i + 1}</div>
+      <div class="recipe-step-text">${escapeHtml(step)}</div>
+    </div>
+  `).join('');
+
+  body.innerHTML = `
+    <div class="recipe-detail-img-container" id="recipe-modal-img-container">
+      <div class="recipe-detail-img-placeholder">
+        <div class="recipe-img-placeholder-icon">${getCuisineIcon(data.cuisine)}</div>
+      </div>
+    </div>
+
+    ${data.description ? `<p style="font-size:14px;color:var(--color-text-secondary);margin-bottom:var(--space-4);line-height:1.6;">${escapeHtml(data.description)}</p>` : ''}
+
+    <div class="recipe-detail-meta">${metaHtml}</div>
+    ${tagsHtml}
+
+    <div class="recipe-detail-section">
+      <div class="recipe-detail-section-title">Ingredients</div>
+      <div class="recipe-ingredients-list">${ingredientsHtml}</div>
+      <p style="font-size:11.5px;color:var(--color-text-muted);margin-top:8px;">Items with amber border are expiring soon in your fridge.</p>
+    </div>
+
+    <div class="recipe-detail-section">
+      <div class="recipe-detail-section-title">Instructions</div>
+      <div class="recipe-instructions-list">${stepsHtml}</div>
+    </div>
+  `;
+
+  // Load image after DOM is set — avoids onerror on blank placeholder
+  const imgContainer = document.getElementById('recipe-modal-img-container');
+  if (imgContainer) {
+    fetch(imgUrl, { credentials: 'include' })
+      .then(r => r.ok ? r.blob() : null)
+      .then(blob => {
+        if (blob && imgContainer) {
+          const url = URL.createObjectURL(blob);
+          imgContainer.innerHTML = `<img src="${url}" alt="${escapeHtml(data.name)}" class="recipe-detail-hero" />`;
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+function closeRecipeModal() {
+  const modal = document.getElementById('recipe-modal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove('open');
+  }
+  document.body.style.overflow = '';
+  _currentRecipeId = null;
+}
+
+function initRecipeModal() {
+  document.getElementById('recipe-modal-close')?.addEventListener('click', closeRecipeModal);
+  document.getElementById('recipe-modal-cancel')?.addEventListener('click', closeRecipeModal);
+  document.getElementById('recipe-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'recipe-modal') closeRecipeModal();
+  });
+  document.getElementById('recipe-modal-made-this')?.addEventListener('click', async () => {
+    if (!_currentRecipeId) return;
+    const title = document.getElementById('recipe-modal-title')?.textContent || '';
+    closeRecipeModal();
+    await madeThis(_currentRecipeId, title);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeRecipeModal();
+  });
+}
+
 function initRecipes() {
   document.querySelectorAll('.dietary-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -264,6 +409,7 @@ function initRecipes() {
   }
 
   refreshRecipes();
+  initRecipeModal();
 }
 
 window.recipesModule = { refreshRecipes, initRecipes };

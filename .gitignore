@@ -1,64 +1,128 @@
-# ── Python ───────────────────────────────────────────────────
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.egg
-*.egg-info/
-dist/
-build/
-.eggs/
 .Python
-pip-wheel-metadata/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# ── Virtual environments ──────────────────────────────────────
+# Virtual Environment
 .venv/
 venv/
-env/
 ENV/
+env/
+.virtualenv/
 
-# ── Environment variables (NEVER commit secrets) ──────────────
+# Environment Variables
 .env
 .env.local
+.env.production
 .env.*.local
 
-# ── Database (auto-generated on first run) ────────────────────
+# Database
 *.db
 *.sqlite
 *.sqlite3
+fridge_observer.db
 
-# ── Logs ─────────────────────────────────────────────────────
+# Logs
 *.log
 logs/
+*.log.*
 
-# ── OS files ─────────────────────────────────────────────────
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# ── IDE / Editor ──────────────────────────────────────────────
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
 
-# ── Kiro internal ─────────────────────────────────────────────
-.kiro/
-
-# ── Supabase ──────────────────────────────────────────────────
-supabase/.temp/
-.supabase/
-
-# ── Test / coverage artifacts ─────────────────────────────────
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
 .hypothesis/
 
-# ── Thumbnails uploaded by the app ───────────────────────────
-static/images/thumbnails/
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Credentials
+credentials.json
+token.json
+*.pem
+*.key
+
+# Node modules (if using any frontend build tools)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Raspberry Pi specific
+test_fridge_image.jpg
+/tmp/
+fridge_capture.jpg
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Documentation builds
+docs/_build/
+site/
+
+# Vercel
+.vercel
+
+# Python cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/

@@ -10,6 +10,7 @@ window.sustainabilityModule = (() => {
   let _activeTab = 'full';
   let _isStreaming = false;
   let _initialized = false;
+  let _analysisCache = {}; // Cache analysis results by product name + focus
 
   // ── Init ──────────────────────────────────────────────────
 
@@ -161,6 +162,7 @@ window.sustainabilityModule = (() => {
   function selectProduct(name, category, id) {
     _selectedItem = { name, category, id };
     _activeTab = 'full';
+    _analysisCache = {}; // Clear cache when selecting a new product
 
     document.querySelectorAll('.sus-item').forEach(el =>
       el.classList.toggle('active', parseInt(el.dataset.id) === id)
@@ -190,6 +192,18 @@ window.sustainabilityModule = (() => {
   async function runAnalysis(name, category, focus) {
     const output = document.getElementById('sus-output');
     if (!output || _isStreaming) return;
+
+    // Check cache first
+    const cacheKey = `${name}:${focus}`;
+    if (_analysisCache[cacheKey]) {
+      output.innerHTML = renderStructured(focus, _analysisCache[cacheKey], name, category);
+      // Load blueprint image if needed
+      if (focus === 'full' || focus === 'blueprint') {
+        const redesignData = focus === 'blueprint' ? _analysisCache[cacheKey].redesign : _analysisCache[cacheKey].blueprint;
+        loadBlueprintImage(name, output, redesignData);
+      }
+      return;
+    }
 
     _isStreaming = true;
     output.innerHTML = `
@@ -226,6 +240,9 @@ window.sustainabilityModule = (() => {
           try {
             const msg = JSON.parse(raw);
             if (msg.type === 'structured') {
+              // Cache the result
+              _analysisCache[cacheKey] = msg.data;
+              
               output.innerHTML = renderStructured(msg.focus, msg.data, name, category);
               // Load blueprint image with redesign spec for accuracy
               if (msg.focus === 'full' || msg.focus === 'blueprint') {
@@ -254,15 +271,15 @@ window.sustainabilityModule = (() => {
     if (!imgSection) return;
 
     imgSection.innerHTML = `
-      <div class="sus-section-title">New Product Concept</div>
+      <div class="sus-section-title">New Product Blueprint</div>
       <div class="sus-blueprint-generating">
         <div class="sus-loading-dots"><span></span><span></span><span></span></div>
-        <div class="sus-loading-text">Generating sustainable product concept with FLUX AI...</div>
+        <div class="sus-loading-text">Generating blueprint with AI...</div>
       </div>
     `;
 
     try {
-      // Build a spec string from the redesign data for a more accurate image
+      // Build spec string from redesign data
       let spec = '';
       if (redesignData) {
         const parts = [];
@@ -272,19 +289,31 @@ window.sustainabilityModule = (() => {
         spec = parts.join('. ').slice(0, 300);
       }
 
-      const url = `/api/sustainability/blueprint-image?product=${encodeURIComponent(productName)}&spec=${encodeURIComponent(spec)}`;
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      const url = `/api/sustainability/blueprint-image?product=${encodeURIComponent(productName)}&spec=${encodeURIComponent(spec)}&t=${timestamp}`;
       const res = await fetch(url, { credentials: 'include' });
 
       if (res.ok) {
-        const blob = await res.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        imgSection.innerHTML = `
-          <div class="sus-section-title">New Product Concept</div>
-          <div class="sus-blueprint-img-wrap">
-            <img src="${objectUrl}" alt="Sustainable redesign of ${esc(productName)}" class="sus-blueprint-img" />
-            <div class="sus-blueprint-img-label">AI-generated sustainable product concept · FLUX.1-schnell</div>
-          </div>
-        `;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('svg')) {
+          const svgText = await res.text();
+          imgSection.innerHTML = `
+            <div class="sus-section-title">New Product Blueprint</div>
+            <div class="sus-blueprint-svg-wrap">${svgText}</div>
+            <div class="sus-blueprint-img-label">Technical blueprint powered by AI</div>
+          `;
+        } else {
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          imgSection.innerHTML = `
+            <div class="sus-section-title">New Product Blueprint</div>
+            <div class="sus-blueprint-img-wrap">
+              <img src="${objectUrl}" alt="Blueprint for ${esc(productName)}" class="sus-blueprint-img" />
+              <div class="sus-blueprint-img-label">Generated with AI</div>
+            </div>
+          `;
+        }
       } else {
         imgSection.innerHTML = '';
       }

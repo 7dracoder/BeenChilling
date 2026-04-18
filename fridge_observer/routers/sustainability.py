@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Sustainability Blueprint endpoint — food product analysis powered by K2-Think."""
+"""Sustainability Blueprint endpoint — product analysis powered by K2-Think, image generation by Dedalus Labs."""
 import logging
 import json as _json
 from fastapi import APIRouter
@@ -28,8 +28,23 @@ class ProductAnalysisRequest(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────
 
 def _extract_answer(text: str) -> str:
+    """Extract the JSON answer from K2 response — tries multiple strategies."""
+    import re
+
+    # Strategy 1: After ---ANSWER--- separator
     if ANSWER_SEP in text:
-        return text.rsplit(ANSWER_SEP, 1)[1].strip()
+        candidate = text.rsplit(ANSWER_SEP, 1)[1].strip()
+        if '{' in candidate:
+            return candidate
+
+    # Strategy 2: Find the last complete JSON object in the text
+    # K2 often writes the final JSON at the end after reasoning
+    json_matches = list(re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL))
+    if json_matches:
+        # Return the largest JSON block (most likely the complete answer)
+        return max(json_matches, key=lambda m: len(m.group(0))).group(0)
+
+    # Strategy 3: Last paragraph
     paragraphs = [p.strip() for p in text.strip().split("\n\n") if p.strip()]
     return paragraphs[-1] if paragraphs else text.strip()
 
@@ -147,17 +162,36 @@ Return JSON:
             full_response = await k2_chat(messages, stream=False)
             raw_answer = _extract_answer(full_response)
 
-            # Try to parse as JSON
+            # Try to parse as JSON — find the first valid JSON object
+            parsed = None
+            clean = raw_answer.strip()
+
+            # Remove markdown fences
+            if "```" in clean:
+                for part in clean.split("```"):
+                    part = part.strip()
+                    if part.startswith("json"):
+                        part = part[4:].strip()
+                    if part.startswith("{"):
+                        clean = part
+                        break
+
+            # Try direct parse
             try:
-                # Strip any markdown code fences if present
-                clean = raw_answer.strip()
-                if clean.startswith("```"):
-                    clean = clean.split("```")[1]
-                    if clean.startswith("json"):
-                        clean = clean[4:]
                 parsed = _json.loads(clean)
+            except _json.JSONDecodeError:
+                # Find JSON object in the text using regex
+                import re
+                match = re.search(r'\{[\s\S]*\}', clean)
+                if match:
+                    try:
+                        parsed = _json.loads(match.group(0))
+                    except _json.JSONDecodeError:
+                        pass
+
+            if parsed:
                 yield f"data: {_json.dumps({'type': 'structured', 'focus': focus, 'data': parsed})}\n\n"
-            except (_json.JSONDecodeError, Exception):
+            else:
                 # Fallback: send as plain text
                 yield f"data: {_json.dumps({'type': 'text', 'focus': focus, 'data': raw_answer})}\n\n"
 
@@ -178,42 +212,286 @@ async def get_blueprint_image(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Generate an accurate new sustainable product concept image using K2 + FLUX.
-    Optional 'spec' param passes the redesign description for a more accurate image.
+    Generate a technical blueprint image for the new sustainable product.
+    Uses AI for image generation.
+    Falls back to SVG rendering if image generation fails.
     """
-    from fridge_observer.image_gen import generate_blueprint_image
     from fastapi.responses import Response
-
-    image_bytes = await generate_blueprint_image(product, redesign_spec=spec)
+    from fridge_observer.image_gen import generate_blueprint_image
+    
+    # Try to generate blueprint image using AI
+    image_bytes = await generate_blueprint_image(product, spec)
+    
     if image_bytes:
-        return Response(content=image_bytes, media_type="image/jpeg")
+        # Return the generated image
+        return Response(content=image_bytes, media_type="image/png")
+    
+    # Fallback to SVG if image generation fails
+    blueprint_data = await _generate_blueprint_specs(product, spec)
+    svg = _render_blueprint_svg(product, blueprint_data)
+    return Response(content=svg.encode("utf-8"), media_type="image/svg+xml")
 
-    svg = _generate_placeholder_svg(product)
-    return Response(content=svg.encode(), media_type="image/svg+xml")
+
+async def _generate_blueprint_specs(product: str, existing_spec: str = "") -> dict:
+    """Use K2 to generate precise material and design specs for the blueprint."""
+    try:
+        from fridge_observer.ai_client import k2_chat, ANSWER_SEP
+        import re
+
+        context = f"\nExisting redesign notes: {existing_spec}" if existing_spec else ""
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a sustainable product designer. Generate precise technical specifications "
+                    "for a new eco-friendly product. Respond ONLY with valid JSON after the separator.\n\n"
+                    f"FORMAT: {ANSWER_SEP}\n{{...}}"
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a technical blueprint specification for a new sustainable version of: {product}{context}\n\n"
+                    "Return JSON with exactly these fields:\n"
+                    "{\n"
+                    '  "product_name": "<new eco product name>",\n'
+                    '  "shape": "<e.g. Cylindrical bottle, Rectangular box, Pouch>",\n'
+                    '  "dimensions": "<e.g. 200mm × 80mm × 80mm>",\n'
+                    '  "primary_material": "<e.g. 100% recycled PET, Bamboo composite, Glass>",\n'
+                    '  "secondary_material": "<e.g. Plant-based ink label, Cork stopper>",\n'
+                    '  "packaging_type": "<e.g. Refillable bottle, Compostable pouch>",\n'
+                    '  "certifications": ["<e.g. FSC Certified>", "<e.g. Compostable>", "<e.g. Carbon Neutral>"],\n'
+                    '  "co2_reduction": "<e.g. 65% less CO2 vs original>",\n'
+                    '  "recyclability": "<e.g. 100% recyclable, Compostable in 90 days>",\n'
+                    '  "key_feature": "<one standout sustainability feature>"\n'
+                    "}"
+                ),
+            },
+        ]
+
+        response = await k2_chat(messages, stream=False)
+
+        # Extract JSON
+        if ANSWER_SEP in response:
+            candidate = response.rsplit(ANSWER_SEP, 1)[1].strip()
+        else:
+            candidate = response
+
+        # Clean fences
+        if "```" in candidate:
+            for part in candidate.split("```"):
+                part = part.strip()
+                if part.startswith("json"):
+                    part = part[4:].strip()
+                if part.startswith("{"):
+                    candidate = part
+                    break
+
+        # Try parse
+        try:
+            return _json.loads(candidate.strip())
+        except Exception:
+            match = re.search(r'\{[\s\S]*\}', candidate)
+            if match:
+                try:
+                    return _json.loads(match.group(0))
+                except Exception:
+                    pass
+
+    except Exception as exc:
+        logger.warning("Blueprint spec generation failed: %s", exc)
+
+    # Fallback defaults
+    return {
+        "product_name": f"Eco {product}",
+        "shape": "Cylindrical container",
+        "dimensions": "200mm × 80mm",
+        "primary_material": "100% Recycled PET",
+        "secondary_material": "Plant-based ink label",
+        "packaging_type": "Refillable & recyclable",
+        "certifications": ["FSC Certified", "Carbon Neutral", "Compostable"],
+        "co2_reduction": "60% less CO2",
+        "recyclability": "100% recyclable",
+        "key_feature": "Closed-loop recycling system",
+    }
 
 
-def _generate_placeholder_svg(product: str) -> str:
-    """Generate a clean SVG blueprint placeholder for a product."""
-    safe = product[:30].replace("<", "").replace(">", "").replace("&", "and")
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="400" height="280" viewBox="0 0 400 280">
+def _wrap(text: str, max_chars: int = 25) -> list[str]:
+    """Split text into lines of max_chars for SVG tspan rendering."""
+    if not text or text == "—":
+        return ["—"]
+    
+    words = str(text).split()
+    lines = []
+    current = ""
+    
+    for word in words:
+        test_line = (current + " " + word).strip() if current else word
+        if len(test_line) <= max_chars:
+            current = test_line
+        else:
+            if current:
+                lines.append(current)
+            # If single word is too long, truncate it
+            if len(word) > max_chars:
+                lines.append(word[:max_chars-3] + "...")
+                current = ""
+            else:
+                current = word
+    
+    if current:
+        lines.append(current)
+    
+    return lines if lines else ["—"]
+
+
+def _svg_text_block(x: int, y: int, text: str, font_size: int, fill: str,
+                    font_family: str = "Inter,sans-serif", font_weight: str = "600",
+                    max_chars: int = 25, line_height: int = 18) -> tuple[str, int]:
+    """Render wrapped text as SVG tspan elements. Returns (svg_str, total_height)."""
+    lines = _wrap(text, max_chars)
+    svg = ""
+    for i, line in enumerate(lines[:2]):  # max 2 lines to keep it readable
+        dy = 0 if i == 0 else line_height
+        svg += f'<tspan x="{x}" dy="{dy}">{_esc_svg(line)}</tspan>'
+    total_height = len(lines[:2]) * line_height
+    full = f'<text x="{x}" y="{y}" font-family="{font_family}" font-size="{font_size}" font-weight="{font_weight}" fill="{fill}">{svg}</text>'
+    return full, total_height
+
+
+def _esc_svg(s: str) -> str:
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _render_blueprint_svg(product: str, d: dict) -> str:
+    """Render a proper technical blueprint SVG with material annotations."""
+
+    def t(key, default="—", max_len=40):
+        return _esc_svg(str(d.get(key, default))[:max_len])
+
+    product_name = t("product_name", f"Eco {product}", 50)
+    shape = t("shape", "Container", 35)
+    dims = t("dimensions", "—", 30)
+    mat1 = t("primary_material", "Recycled material", 40)
+    mat2 = t("secondary_material", "Plant-based label", 40)
+    pkg_type = t("packaging_type", "Eco packaging", 40)
+    co2 = t("co2_reduction", "—", 30)
+    recyclability = t("recyclability", "—", 40)
+    key_feature = t("key_feature", "—", 45)
+    certs = d.get("certifications", [])[:3]
+
+    # Generate wrapped text SVG for each material field with MUCH LARGER, READABLE text
+    mat1_svg, mat1_h = _svg_text_block(320, 118, str(d.get("primary_material", "Recycled material")), 14, "#F0FDF4", max_chars=22, line_height=18)
+    mat2_svg, mat2_h = _svg_text_block(320, 168, str(d.get("secondary_material", "Plant-based label")), 14, "#F0FDF4", max_chars=22, line_height=18)
+    pkg_svg, pkg_h = _svg_text_block(320, 218, str(d.get("packaging_type", "Eco packaging")), 14, "#F0FDF4", max_chars=22, line_height=18)
+    rec_svg, rec_h = _svg_text_block(320, 268, str(d.get("recyclability", "—")), 14, "#34D399", max_chars=22, line_height=18)
+    feat_svg, feat_h = _svg_text_block(320, 348, str(d.get("key_feature", "—")), 13, "#A7C4B5", max_chars=24, line_height=17)
+
+    # Cert badges
+    cert_badges = ""
+    for i, cert in enumerate(certs):
+        x = 30 + i * 175
+        cert_text = _esc_svg(str(cert)[:22])
+        cert_badges += f'''
+        <rect x="{x}" y="490" width="165" height="26" rx="13" fill="#1a3d2b" stroke="#34D399" stroke-width="1"/>
+        <text x="{x + 82}" y="507" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#34D399" font-weight="600">{cert_text}</text>'''
+
+    # Dimension parts
+    dim_parts = dims.split("×") if "×" in dims else [dims, ""]
+    dim_w = dim_parts[0].strip()
+    dim_h = dim_parts[1].strip() if len(dim_parts) > 1 else ""
+
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="600" height="540" viewBox="0 0 600 540">
   <defs>
     <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#c8e6d0" stroke-width="0.5"/>
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1a3d2b" stroke-width="0.4"/>
     </pattern>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#34D399"/>
+    </marker>
+    <marker id="arrL" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L0,6 L6,3 z" fill="#34D399"/>
+    </marker>
+    <clipPath id="matClip"><rect x="310" y="60" width="270" height="300"/></clipPath>
   </defs>
-  <rect width="400" height="280" fill="#EBF3EE" rx="12"/>
-  <rect width="400" height="280" fill="url(#grid)" rx="12"/>
-  <rect x="40" y="40" width="320" height="160" fill="none" stroke="#4A7C59" stroke-width="2" rx="8" stroke-dasharray="8,4"/>
-  <rect x="60" y="60" width="280" height="120" fill="none" stroke="#4A7C59" stroke-width="1" rx="4" opacity="0.5"/>
-  <line x1="200" y1="40" x2="200" y2="200" stroke="#4A7C59" stroke-width="0.8" stroke-dasharray="4,4" opacity="0.4"/>
-  <line x1="40" y1="120" x2="360" y2="120" stroke="#4A7C59" stroke-width="0.8" stroke-dasharray="4,4" opacity="0.4"/>
-  <circle cx="200" cy="120" r="30" fill="none" stroke="#4A7C59" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="200" cy="120" r="5" fill="#4A7C59" opacity="0.8"/>
-  <line x1="40" y1="210" x2="360" y2="210" stroke="#4A7C59" stroke-width="1" opacity="0.3"/>
-  <line x1="40" y1="205" x2="40" y2="215" stroke="#4A7C59" stroke-width="1.5"/>
-  <line x1="360" y1="205" x2="360" y2="215" stroke="#4A7C59" stroke-width="1.5"/>
-  <text x="200" y="208" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A7C59">← 320mm →</text>
-  <text x="200" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#2d5a3d">{safe}</text>
-  <text x="200" y="258" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#6B6860">Sustainability Blueprint</text>
-  <text x="200" y="272" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A59E">[ Gemini Vision — API key required ]</text>
-</svg>"""
+
+  <!-- Background -->
+  <rect width="600" height="540" fill="#0A1612"/>
+  <rect width="600" height="540" fill="url(#grid)" opacity="0.6"/>
+
+  <!-- Title bar -->
+  <rect x="0" y="0" width="600" height="44" fill="#0d2218"/>
+  <text x="20" y="14" font-family="JetBrains Mono,monospace" font-size="9" fill="#34D399" opacity="0.7">SUSTAINABILITY BLUEPRINT — TECHNICAL SPECIFICATION</text>
+  <text x="20" y="32" font-family="Inter,sans-serif" font-size="15" font-weight="700" fill="#F0FDF4">{product_name}</text>
+  <text x="580" y="28" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">REV 1.0</text>
+
+  <!-- Left: product drawing -->
+  <rect x="30" y="60" width="260" height="300" rx="4" fill="none" stroke="#1a3d2b" stroke-width="1"/>
+
+  <!-- Product silhouette -->
+  <rect x="115" y="80" width="90" height="18" rx="5" fill="none" stroke="#34D399" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <rect x="95" y="98" width="130" height="210" rx="8" fill="#0d2218" stroke="#34D399" stroke-width="2"/>
+  <!-- Label area -->
+  <rect x="100" y="148" width="120" height="90" rx="4" fill="#1a3d2b" stroke="#34D399" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="160" y="188" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#34D399" font-weight="600">ECO LABEL</text>
+  <text x="160" y="202" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">{co2}</text>
+  <text x="160" y="224" text-anchor="middle" font-family="Inter,sans-serif" font-size="16" fill="#34D399">♻</text>
+  <!-- Bottom cap -->
+  <rect x="95" y="308" width="130" height="10" rx="3" fill="none" stroke="#34D399" stroke-width="1.5"/>
+
+  <!-- Dimension lines -->
+  <line x1="95" y1="332" x2="225" y2="332" stroke="#34D399" stroke-width="0.8" marker-start="url(#arrL)" marker-end="url(#arr)"/>
+  <text x="160" y="344" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#34D399">{dim_w}</text>
+  <line x1="238" y1="98" x2="238" y2="308" stroke="#34D399" stroke-width="0.8" marker-start="url(#arrL)" marker-end="url(#arr)"/>
+  <text x="252" y="208" font-family="JetBrains Mono,monospace" font-size="10" fill="#34D399" transform="rotate(90,252,208)">{dim_h}</text>
+
+  <!-- Shape label -->
+  <text x="160" y="365" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#A7C4B5">{shape}</text>
+
+  <!-- Right: material specs (clipped) -->
+  <rect x="310" y="60" width="270" height="300" rx="4" fill="none" stroke="#1a3d2b" stroke-width="1"/>
+  <rect x="310" y="60" width="270" height="22" rx="4" fill="#0d2218"/>
+  <text x="320" y="75" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="#34D399">MATERIALS &amp; CONSTRUCTION</text>
+
+  <!-- Row 1: Primary material -->
+  <line x1="310" y1="96" x2="580" y2="96" stroke="#1a3d2b" stroke-width="0.8"/>
+  <text x="320" y="108" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">PRIMARY MATERIAL</text>
+  {mat1_svg}
+
+  <!-- Row 2: Secondary -->
+  <line x1="310" y1="150" x2="580" y2="150" stroke="#1a3d2b" stroke-width="0.8"/>
+  <text x="320" y="162" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">SECONDARY / LABEL</text>
+  {mat2_svg}
+
+  <!-- Row 3: Packaging type -->
+  <line x1="310" y1="200" x2="580" y2="200" stroke="#1a3d2b" stroke-width="0.8"/>
+  <text x="320" y="212" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">PACKAGING TYPE</text>
+  {pkg_svg}
+
+  <!-- Row 4: Recyclability -->
+  <line x1="310" y1="250" x2="580" y2="250" stroke="#1a3d2b" stroke-width="0.8"/>
+  <text x="320" y="262" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">RECYCLABILITY</text>
+  {rec_svg}
+
+  <!-- Row 5: CO2 -->
+  <line x1="310" y1="295" x2="580" y2="295" stroke="#1a3d2b" stroke-width="0.8"/>
+  <text x="320" y="307" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">CO2 REDUCTION</text>
+  <text x="320" y="325" font-family="Inter,sans-serif" font-size="16" font-weight="700" fill="#34D399">{co2}</text>
+
+  <!-- Row 6: Key feature -->
+  <line x1="310" y1="338" x2="580" y2="338" stroke="#1a3d2b" stroke-width="0.8"/>
+  <text x="320" y="350" font-family="JetBrains Mono,monospace" font-size="9" fill="#5E8A73">KEY FEATURE</text>
+  {feat_svg}
+
+  <!-- Certifications -->
+  <rect x="30" y="375" width="550" height="100" rx="4" fill="none" stroke="#1a3d2b" stroke-width="1"/>
+  <rect x="30" y="375" width="550" height="22" rx="4" fill="#0d2218"/>
+  <text x="40" y="390" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="#34D399">CERTIFICATIONS &amp; COMPLIANCE</text>
+  {cert_badges}
+
+  <!-- Footer -->
+  <line x1="0" y1="525" x2="600" y2="525" stroke="#1a3d2b" stroke-width="1"/>
+  <text x="20" y="537" font-family="JetBrains Mono,monospace" font-size="8" fill="#5E8A73">FRIDGE OBSERVER — ECOSCAN BLUEPRINT</text>
+  <text x="580" y="537" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="8" fill="#5E8A73">POWERED BY AI</text>
+</svg>'''

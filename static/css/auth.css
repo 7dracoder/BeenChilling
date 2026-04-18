@@ -3,18 +3,20 @@
    auth.css
    ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --color-bg:           #0A1612;
-  --color-surface:      rgba(14, 30, 22, 0.75);
-  --color-surface-alt:  #132A1E;
-  --color-border:       rgba(255, 255, 255, 0.07);
-  --glass-bg:           rgba(10, 22, 18, 0.72);
-  --glass-border:       rgba(52, 211, 153, 0.08);
-  --color-text-primary:   #F0FDF4;
-  --color-text-secondary: #A7C4B5;
-  --color-text-muted:     #5E8A73;
+  --color-bg:           #0D1218;
+  --color-surface:      rgba(18, 24, 33, 0.78);
+  --color-surface-alt:  #1A2230;
+  --color-border:       rgba(170, 188, 209, 0.18);
+  --glass-bg:           rgba(16, 22, 30, 0.76);
+  --glass-border:       rgba(148, 163, 184, 0.16);
+  --color-text-primary:   #EDF3FA;
+  --color-text-secondary: #B4C2D4;
+  --color-text-muted:     #8395AB;
   --color-ok:       #34D399;
   --color-warning:  #FBBF24;
   --color-error:    #F87171;
@@ -23,7 +25,7 @@
   --color-accent-light: rgba(52, 211, 153, 0.12);
   --color-accent-hover: #10B981;
   --gradient-primary: linear-gradient(135deg, #34D399 0%, #059669 100%);
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -32,30 +34,54 @@
 
 body.auth-body {
   font-family: var(--font-sans);
-  background: var(--color-bg);
+  background:
+    radial-gradient(1200px 640px at 92% -10%, rgba(52, 211, 153, 0.12), transparent 58%),
+    radial-gradient(820px 520px at -10% 112%, rgba(56, 189, 248, 0.1), transparent 62%),
+    linear-gradient(180deg, #111823 0%, #0D1218 52%, #0A0F15 100%);
   min-height: 100vh;
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  place-items: center;
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
+  padding: 12px;
 }
 
 /* ── Layout ─────────────────────────────────────────────────── */
 .auth-container {
   display: flex;
-  width: 100%;
-  min-height: 100vh;
+  width: min(1140px, 100%);
+  min-height: min(760px, calc(100vh - 24px));
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 24px 60px rgba(4, 7, 11, 0.52);
+  backdrop-filter: blur(10px);
 }
 
 /* ── Brand panel (left) ─────────────────────────────────────── */
 .auth-brand {
   display: none;
   flex: 1;
-  background: var(--gradient-primary);
+  background:
+    radial-gradient(480px 220px at 78% 14%, rgba(255,255,255,0.26), transparent 62%),
+    linear-gradient(148deg, #1D9E78 0%, #14765D 44%, #0E5A49 100%);
   color: #fff;
   padding: 48px;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.auth-brand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.28) 1px, transparent 1px);
+  background-size: 42px 42px;
 }
 
 @media (min-width: 900px) {
@@ -78,7 +104,8 @@ body.auth-body {
   font-size: 32px;
   font-weight: 700;
   margin-bottom: 12px;
-  letter-spacing: -0.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .auth-brand-sub {
@@ -114,8 +141,8 @@ body.auth-body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 24px;
-  background: var(--color-bg);
+  padding: 36px 28px;
+  background: linear-gradient(180deg, rgba(14, 20, 29, 0.84), rgba(11, 16, 24, 0.8));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
@@ -123,16 +150,22 @@ body.auth-body {
 .auth-form-inner {
   width: 100%;
   max-width: 400px;
+  background: rgba(17, 24, 34, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 18px 36px rgba(4, 7, 11, 0.34);
 }
 
 /* ── Tabs ───────────────────────────────────────────────────── */
 .auth-tabs {
   display: flex;
   gap: 4px;
-  background: var(--color-bg);
+  background: rgba(10, 14, 21, 0.6);
   border-radius: var(--radius-md);
   padding: 4px;
   margin-bottom: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .auth-tab {
@@ -150,9 +183,9 @@ body.auth-body {
 }
 
 .auth-tab.active {
-  background: var(--color-surface);
+  background: rgba(29, 39, 53, 0.95);
   color: var(--color-text-primary);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 18px rgba(4, 7, 11, 0.3);
 }
 
 /* ── Panels ─────────────────────────────────────────────────── */
@@ -221,14 +254,14 @@ body.auth-body {
   font-family: var(--font-sans);
   font-size: 14px;
   color: var(--color-text-primary);
-  background: var(--color-surface-alt);
+  background: linear-gradient(180deg, rgba(18, 25, 35, 0.88), rgba(22, 30, 42, 0.82));
   outline: none;
   transition: border-color 150ms ease, background 150ms ease;
 }
 
 .auth-input:focus {
   border-color: var(--color-accent);
-  background: var(--color-surface);
+  background: linear-gradient(180deg, rgba(20, 28, 39, 0.96), rgba(24, 32, 45, 0.9));
 }
 
 .auth-input.error {
