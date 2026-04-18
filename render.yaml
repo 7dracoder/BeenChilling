@@ -5,11 +5,12 @@ services:
     plan: free
     buildCommand: |
       pip install --upgrade pip setuptools wheel
+      pip install --only-binary=:all: pydantic pydantic-core
       pip install -r requirements.txt
     startCommand: uvicorn fridge_observer.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.9
       - key: PORT
         generateValue: true
       - key: HOST

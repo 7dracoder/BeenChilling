@@ -25,8 +25,8 @@ opencv-python-headless==4.10.0.84
 python-dotenv==1.0.0
 
 # Utilities
-pydantic==2.5.3
-pydantic-settings==2.1.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
 
 # Hardware (for Raspberry Pi - optional)
 gpiozero==2.0.1; platform_machine == "armv7l" or platform_machine == "aarch64"
