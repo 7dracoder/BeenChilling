@@ -39,7 +39,7 @@ window.sustainabilityModule = (() => {
       <div class="sus-layout">
         <div class="sus-sidebar">
           <div class="sus-sidebar-header">
-            <div class="sus-sidebar-title">🥦 Your Fridge Items</div>
+            <div class="sus-sidebar-title">Your Fridge Items</div>
             <div class="sus-sidebar-sub">Select a product to scan</div>
           </div>
           <div class="sus-search-wrap">
@@ -59,15 +59,17 @@ window.sustainabilityModule = (() => {
 
         <div class="sus-main">
           <div id="sus-welcome" class="sus-welcome">
-            <div class="sus-welcome-icon">🌿</div>
+            <div class="sus-welcome-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="56" height="56"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 22 12 12"/></svg>
+            </div>
             <h3>EcoScan — Product Sustainability</h3>
             <p>Select any product from your fridge or type one manually to get a full sustainability report — CO₂ impact, eco-friendly alternatives, and a redesign blueprint.</p>
             <div class="sus-welcome-chips">
-              <span class="sus-example-chip" data-name="Milk" data-cat="dairy">🥛 Milk</span>
-              <span class="sus-example-chip" data-name="Chicken breast" data-cat="meat">🍗 Chicken</span>
-              <span class="sus-example-chip" data-name="Coca-Cola" data-cat="beverages">🥤 Coca-Cola</span>
-              <span class="sus-example-chip" data-name="Strawberries" data-cat="fruits">🍓 Strawberries</span>
-              <span class="sus-example-chip" data-name="Cheddar cheese" data-cat="dairy">🧀 Cheddar</span>
+              <span class="sus-example-chip" data-name="Milk" data-cat="dairy">Milk</span>
+              <span class="sus-example-chip" data-name="Chicken breast" data-cat="meat">Chicken</span>
+              <span class="sus-example-chip" data-name="Coca-Cola" data-cat="beverages">Coca-Cola</span>
+              <span class="sus-example-chip" data-name="Strawberries" data-cat="fruits">Strawberries</span>
+              <span class="sus-example-chip" data-name="Cheddar cheese" data-cat="dairy">Cheddar</span>
             </div>
           </div>
 
@@ -75,10 +77,10 @@ window.sustainabilityModule = (() => {
             <div class="sus-analysis-header">
               <div class="sus-product-badge" id="sus-product-badge"></div>
               <div class="sus-analysis-tabs">
-                <button class="sus-tab active" data-tab="full">📊 Full Report</button>
-                <button class="sus-tab" data-tab="co2">💨 CO₂</button>
-                <button class="sus-tab" data-tab="alternatives">♻️ Alternatives</button>
-                <button class="sus-tab" data-tab="blueprint">🔧 Redesign</button>
+                <button class="sus-tab active" data-tab="full">Full Report</button>
+                <button class="sus-tab" data-tab="co2">CO₂</button>
+                <button class="sus-tab" data-tab="alternatives">Alternatives</button>
+                <button class="sus-tab" data-tab="blueprint">Redesign</button>
               </div>
             </div>
             <div id="sus-output" class="sus-output">
@@ -252,7 +254,7 @@ window.sustainabilityModule = (() => {
     if (!imgSection) return;
 
     imgSection.innerHTML = `
-      <div class="sus-section-title">🎨 New Product Concept</div>
+      <div class="sus-section-title">New Product Concept</div>
       <div class="sus-blueprint-generating">
         <div class="sus-loading-dots"><span></span><span></span><span></span></div>
         <div class="sus-loading-text">Generating sustainable product concept with FLUX AI...</div>
@@ -277,7 +279,7 @@ window.sustainabilityModule = (() => {
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
         imgSection.innerHTML = `
-          <div class="sus-section-title">🎨 New Product Concept</div>
+          <div class="sus-section-title">New Product Concept</div>
           <div class="sus-blueprint-img-wrap">
             <img src="${objectUrl}" alt="Sustainable redesign of ${esc(productName)}" class="sus-blueprint-img" />
             <div class="sus-blueprint-img-label">AI-generated sustainable product concept · FLUX.1-schnell</div>
@@ -326,16 +328,16 @@ window.sustainabilityModule = (() => {
 
         <!-- Key metrics -->
         <div class="sus-metrics-grid">
-          ${metricCard('💨', 'CO₂ per unit', d.co2_per_unit || '—')}
-          ${metricCard('💧', 'Water usage', d.water_usage || '—')}
-          ${metricCard('📦', 'Packaging', d.packaging_rating || '—')}
-          ${metricCard('🚚', 'Food miles', d.food_miles || '—')}
+          ${metricCard('CO₂ per unit', d.co2_per_unit || '—')}
+          ${metricCard('Water usage', d.water_usage || '—')}
+          ${metricCard('Packaging', d.packaging_rating || '—')}
+          ${metricCard('Food miles', d.food_miles || '—')}
         </div>
 
         <!-- Key facts -->
         ${d.key_facts && d.key_facts.length ? `
           <div class="sus-section">
-            <div class="sus-section-title">📌 Key Facts</div>
+            <div class="sus-section-title">Key Facts</div>
             <ul class="sus-fact-list">
               ${d.key_facts.map(f => `<li>${esc(f)}</li>`).join('')}
             </ul>
@@ -345,7 +347,7 @@ window.sustainabilityModule = (() => {
         <!-- Alternatives -->
         ${d.alternatives && d.alternatives.length ? `
           <div class="sus-section">
-            <div class="sus-section-title">♻️ Sustainable Alternatives</div>
+            <div class="sus-section-title">Sustainable Alternatives</div>
             <div class="sus-alt-list">
               ${d.alternatives.map(a => `
                 <div class="sus-alt-card">
@@ -361,12 +363,12 @@ window.sustainabilityModule = (() => {
         <!-- Blueprint summary -->
         ${d.blueprint ? `
           <div class="sus-section">
-            <div class="sus-section-title">🔧 Redesign Blueprint</div>
+            <div class="sus-section-title">Redesign Blueprint</div>
             <div class="sus-blueprint-grid">
-              ${blueprintRow('📦', 'Packaging', d.blueprint.packaging)}
-              ${blueprintRow('🌾', 'Sourcing', d.blueprint.sourcing)}
-              ${blueprintRow('🏭', 'Production', d.blueprint.production)}
-              ${blueprintRow('♻️', 'End of Life', d.blueprint.end_of_life)}
+              ${blueprintRow('Packaging', d.blueprint.packaging)}
+              ${blueprintRow('Sourcing', d.blueprint.sourcing)}
+              ${blueprintRow('Production', d.blueprint.production)}
+              ${blueprintRow('End of Life', d.blueprint.end_of_life)}
             </div>
           </div>
         ` : ''}
@@ -382,15 +384,15 @@ window.sustainabilityModule = (() => {
     return `
       <div class="sus-structured">
         <div class="sus-section">
-          <div class="sus-section-title">💨 Carbon Footprint — ${esc(name)}</div>
+          <div class="sus-section-title">Carbon Footprint — ${esc(name)}</div>
           <div class="sus-metrics-grid">
-            ${metricCard('💨', 'CO₂ per unit', d.co2_per_unit || '—')}
-            ${metricCard('📊', 'vs Average', d.vs_average || '—')}
+            ${metricCard('CO₂ per unit', d.co2_per_unit || '—')}
+            ${metricCard('vs Average', d.vs_average || '—')}
           </div>
         </div>
         ${d.breakdown ? `
           <div class="sus-section">
-            <div class="sus-section-title">📊 Emissions Breakdown</div>
+            <div class="sus-section-title">Emissions Breakdown</div>
             <div class="sus-breakdown-list">
               ${Object.entries(d.breakdown).map(([k, v]) => `
                 <div class="sus-breakdown-row">
@@ -403,7 +405,7 @@ window.sustainabilityModule = (() => {
         ` : ''}
         ${d.reduction_tips && d.reduction_tips.length ? `
           <div class="sus-section">
-            <div class="sus-section-title">💡 Reduction Tips</div>
+            <div class="sus-section-title">Reduction Tips</div>
             <ul class="sus-fact-list">
               ${d.reduction_tips.map(t => `<li>${esc(t)}</li>`).join('')}
             </ul>
@@ -411,7 +413,7 @@ window.sustainabilityModule = (() => {
         ` : ''}
         ${d.low_carbon_alternative ? `
           <div class="sus-section">
-            <div class="sus-section-title">🌿 Best Low-Carbon Alternative</div>
+            <div class="sus-section-title">Best Low-Carbon Alternative</div>
             <div class="sus-highlight-box">${esc(d.low_carbon_alternative)}</div>
           </div>
         ` : ''}
@@ -424,7 +426,7 @@ window.sustainabilityModule = (() => {
     return `
       <div class="sus-structured">
         <div class="sus-section">
-          <div class="sus-section-title">♻️ Sustainable Alternatives to ${esc(name)}</div>
+          <div class="sus-section-title">Sustainable Alternatives to ${esc(name)}</div>
           <div class="sus-alt-list-full">
             ${alts.map((a, i) => `
               <div class="sus-alt-full-card">
@@ -437,7 +439,7 @@ window.sustainabilityModule = (() => {
                   <div class="sus-alt-full-saving">${esc(a.co2_saving || '')}</div>
                 </div>
                 <div class="sus-alt-full-body">
-                  <div class="sus-alt-full-benefit">🌱 ${esc(a.benefit || '')}</div>
+                  <div class="sus-alt-full-benefit">${esc(a.benefit || '')}</div>
                   ${a.where_to_find ? `<div class="sus-alt-full-where">🛒 ${esc(a.where_to_find)}</div>` : ''}
                 </div>
               </div>
@@ -446,7 +448,7 @@ window.sustainabilityModule = (() => {
         </div>
         ${d.best_pick ? `
           <div class="sus-section">
-            <div class="sus-section-title">⭐ Best Pick</div>
+            <div class="sus-section-title">Best Pick</div>
             <div class="sus-highlight-box sus-highlight-green">${esc(d.best_pick)}</div>
           </div>
         ` : ''}
@@ -459,7 +461,7 @@ window.sustainabilityModule = (() => {
     return `
       <div class="sus-structured">
         <div class="sus-section">
-          <div class="sus-section-title">🔧 Sustainability Redesign Blueprint — ${esc(name)}</div>
+          <div class="sus-section-title">Sustainability Redesign Blueprint — ${esc(name)}</div>
           ${d.current_issues && d.current_issues.length ? `
             <div class="sus-issues-list">
               ${d.current_issues.map(i => `<div class="sus-issue-item">⚠️ ${esc(i)}</div>`).join('')}
@@ -469,7 +471,7 @@ window.sustainabilityModule = (() => {
 
         ${Object.keys(redesign).length ? `
           <div class="sus-section">
-            <div class="sus-section-title">📐 Redesign Proposals</div>
+            <div class="sus-section-title">Redesign Proposals</div>
             <div class="sus-redesign-grid">
               ${Object.entries(redesign).map(([key, val]) => `
                 <div class="sus-redesign-card">
@@ -490,8 +492,8 @@ window.sustainabilityModule = (() => {
         ` : ''}
 
         <div class="sus-metrics-grid">
-          ${metricCard('📉', 'CO₂ Reduction', d.estimated_co2_reduction || '—')}
-          ${metricCard('🔨', 'Difficulty', d.implementation_difficulty || '—')}
+          ${metricCard('CO₂ Reduction', d.estimated_co2_reduction || '—')}
+          ${metricCard('Difficulty', d.implementation_difficulty || '—')}
         </div>
 
         ${d.summary ? `
@@ -508,21 +510,20 @@ window.sustainabilityModule = (() => {
 
   // ── Component helpers ─────────────────────────────────────
 
-  function metricCard(icon, label, value) {
+  function metricCard(label, value) {
     return `
       <div class="sus-metric-card">
-        <div class="sus-metric-icon">${icon}</div>
         <div class="sus-metric-label">${esc(label)}</div>
         <div class="sus-metric-value">${esc(value)}</div>
       </div>
     `;
   }
 
-  function blueprintRow(icon, label, text) {
+  function blueprintRow(label, text) {
     if (!text) return '';
     return `
       <div class="sus-bp-row">
-        <div class="sus-bp-row-header">${icon} ${esc(label)}</div>
+        <div class="sus-bp-row-header">${esc(label)}</div>
         <div class="sus-bp-row-text">${esc(text)}</div>
       </div>
     `;

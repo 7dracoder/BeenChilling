@@ -3,19 +3,47 @@
  * recipes.js
  */
 
-const CUISINE_EMOJIS = {
-  Italian: '🍝',
-  Asian: '🍜',
-  Mexican: '🌮',
-  Indian: '🍛',
-  French: '🥐',
-  Mediterranean: '🫒',
-  American: '🥞',
-  Modern: '🥑',
-  Tropical: '🥭',
-  default: '🍳',
-};
+// ── Image load queue ──────────────────────────────────────────
+// Loads recipe images one at a time to avoid HF rate limits
+const _imageQueue = [];
+let _imageQueueRunning = false;
 
+function queueImageLoad(imgEl, url) {
+  _imageQueue.push({ imgEl, url });
+  if (!_imageQueueRunning) _processImageQueue();
+}
+
+async function _processImageQueue() {
+  if (_imageQueue.length === 0) { _imageQueueRunning = false; return; }
+  _imageQueueRunning = true;
+
+  const { imgEl, url } = _imageQueue.shift();
+
+  // Skip if element no longer in DOM
+  if (!document.contains(imgEl)) {
+    _processImageQueue();
+    return;
+  }
+
+  try {
+    const res = await fetch(url, { credentials: 'include' });
+    if (res.ok) {
+      const blob = await res.blob();
+      imgEl.src = URL.createObjectURL(blob);
+      imgEl.classList.add('loaded');
+    } else {
+      imgEl.dispatchEvent(new Event('error'));
+    }
+  } catch {
+    imgEl.dispatchEvent(new Event('error'));
+  }
+
+  // Small delay between requests to avoid rate limiting
+  await new Promise(r => setTimeout(r, 800));
+  _processImageQueue();
+}
+
+// ── Filters state ─────────────────────────────────────────────
 let _recipeFilters = {
   dietary: null,
   cuisine: null,
@@ -23,7 +51,6 @@ let _recipeFilters = {
   favorites_only: false,
 };
 
-/** Fetch recipes from the API */
 async function fetchRecipes(filters = {}) {
   const params = new URLSearchParams();
   if (filters.dietary) params.set('dietary', filters.dietary);
@@ -31,19 +58,28 @@ async function fetchRecipes(filters = {}) {
   if (filters.max_prep_minutes) params.set('max_prep_minutes', filters.max_prep_minutes);
   if (filters.favorites_only) params.set('favorites_only', 'true');
 
-  const res = await fetch(`/api/recipes?${params}`);
+  const res = await fetch(`/api/recipes?${params}`, { credentials: 'include' });
   if (!res.ok) throw new Error(`Failed to fetch recipes: ${res.status}`);
   return res.json();
 }
 
-/** Get urgency level from score */
 function getUrgencyLevel(score) {
   if (score >= 1.5) return 'high';
   if (score >= 0.5) return 'medium';
   return 'low';
 }
 
-/** Render recipe cards */
+// ── Cuisine icon (SVG-based, no emoji) ────────────────────────
+function getCuisineIcon(cuisine) {
+  const icons = {
+    Italian: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12h8M12 8v8"/></svg>`,
+    Asian: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+    default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`,
+  };
+  return icons[cuisine] || icons.default;
+}
+
+// ── Render recipe cards ───────────────────────────────────────
 function renderRecipeCards(scoredRecipes) {
   const grid = document.getElementById('recipe-grid');
   if (!grid) return;
@@ -51,9 +87,8 @@ function renderRecipeCards(scoredRecipes) {
   if (scoredRecipes.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">🍽️</div>
         <div class="empty-state-title">No recipes found</div>
-        <div class="empty-state-text">Try adjusting your filters, or add more items to your fridge to unlock recipe suggestions.</div>
+        <div class="empty-state-text">Add more items to your fridge to unlock recipe suggestions.</div>
       </div>
     `;
     return;
@@ -61,184 +96,145 @@ function renderRecipeCards(scoredRecipes) {
 
   grid.innerHTML = scoredRecipes.map(sr => renderRecipeCard(sr)).join('');
 
-  // Attach event listeners
+  // Queue image loads sequentially
+  grid.querySelectorAll('.recipe-flux-img[data-src]').forEach(img => {
+    const url = img.dataset.src;
+    img.removeAttribute('data-src');
+    queueImageLoad(img, url);
+  });
+
+  // Event listeners
   grid.querySelectorAll('.heart-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      const isFav = btn.classList.contains('favorited');
-      await toggleFavorite(id, isFav, btn);
+      await toggleFavorite(parseInt(btn.dataset.id), btn.classList.contains('favorited'), btn);
     });
   });
 
   grid.querySelectorAll('.made-this-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      const name = btn.dataset.name;
-      await madeThis(id, name);
+      await madeThis(parseInt(btn.dataset.id), btn.dataset.name);
     });
   });
 }
 
-/** Render a single recipe card */
 function renderRecipeCard(scoredRecipe) {
   const { recipe, urgency_score, matching_expiring_items } = scoredRecipe;
-  const emoji = CUISINE_EMOJIS[recipe.cuisine] || CUISINE_EMOJIS.default;
   const urgencyLevel = getUrgencyLevel(urgency_score);
-  const scoreDisplay = urgency_score > 0 ? urgency_score.toFixed(1) : '0';
+  const scoreDisplay = urgency_score > 0 ? urgency_score.toFixed(1) : null;
 
   const tagsHtml = (recipe.dietary_tags || []).map(tag =>
-    `<span class="recipe-tag ${tag.replace(/\s+/g, '-').toLowerCase()}">${tag}</span>`
+    `<span class="recipe-tag">${escapeHtml(tag)}</span>`
   ).join('');
 
-  const expiringHtml = matching_expiring_items && matching_expiring_items.length > 0 ? `
+  const expiringHtml = matching_expiring_items?.length ? `
     <div class="expiring-ingredients">
-      <div class="expiring-ingredients-title">🕐 Uses expiring items</div>
-      ${matching_expiring_items.map(name =>
-        `<div class="expiring-ingredient-item">${escapeHtml(name)}</div>`
-      ).join('')}
+      <span class="expiring-label">Uses expiring:</span>
+      ${matching_expiring_items.map(n => `<span class="expiring-ingredient-item">${escapeHtml(n)}</span>`).join('')}
     </div>
   ` : '';
 
-  const prepTime = recipe.prep_minutes ? `⏱ ${recipe.prep_minutes} min` : '';
-  const cuisine = recipe.cuisine ? `🌍 ${recipe.cuisine}` : '';
+  const metaItems = [
+    recipe.prep_minutes ? `${recipe.prep_minutes} min` : null,
+    recipe.cuisine || null,
+  ].filter(Boolean).map(t => `<span class="recipe-meta-item">${escapeHtml(t)}</span>`).join('');
 
-  // Use FLUX-generated image, lazy-loaded
+  // Use data-src for lazy sequential loading
   const imgUrl = `/api/ai/recipe-image?name=${encodeURIComponent(recipe.name)}&cuisine=${encodeURIComponent(recipe.cuisine || '')}`;
 
   return `
     <div class="recipe-card">
-      <div class="recipe-image-area flux-image-area" data-img-url="${imgUrl}">
+      <div class="recipe-image-area flux-image-area">
         <img
-          src="${imgUrl}"
+          data-src="${imgUrl}"
           alt="${escapeHtml(recipe.name)}"
           class="recipe-flux-img"
-          loading="lazy"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3C/svg%3E"
         />
-        <span class="recipe-img-fallback" aria-hidden="true" style="display:none;">${emoji}</span>
-        ${urgency_score > 0 ? `
-          <div class="urgency-badge ${urgencyLevel}">
-            🔥 ${scoreDisplay}
-          </div>
-        ` : ''}
+        <div class="recipe-img-placeholder">
+          <div class="recipe-img-placeholder-icon">${getCuisineIcon(recipe.cuisine)}</div>
+        </div>
+        ${scoreDisplay ? `<div class="urgency-badge ${urgencyLevel}">${scoreDisplay}</div>` : ''}
       </div>
       <div class="recipe-content">
         <div class="recipe-name">${escapeHtml(recipe.name)}</div>
         ${recipe.description ? `<div class="recipe-description">${escapeHtml(recipe.description)}</div>` : ''}
-        <div class="recipe-meta">
-          ${prepTime ? `<span class="recipe-meta-item">${prepTime}</span>` : ''}
-          ${cuisine ? `<span class="recipe-meta-item">${cuisine}</span>` : ''}
-        </div>
+        ${metaItems ? `<div class="recipe-meta">${metaItems}</div>` : ''}
         ${tagsHtml ? `<div class="recipe-tags">${tagsHtml}</div>` : ''}
         ${expiringHtml}
       </div>
       <div class="recipe-actions">
-        <button class="heart-btn ${recipe.is_favorite ? 'favorited' : ''}" 
-                data-id="${recipe.id}" 
-                aria-label="${recipe.is_favorite ? 'Remove from favorites' : 'Add to favorites'}"
-                title="${recipe.is_favorite ? 'Remove from favorites' : 'Save recipe'}">
+        <button class="heart-btn ${recipe.is_favorite ? 'favorited' : ''}"
+                data-id="${recipe.id}"
+                aria-label="${recipe.is_favorite ? 'Remove from favorites' : 'Save recipe'}">
+          <svg viewBox="0 0 24 24" fill="${recipe.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
         </button>
-        <button class="btn btn-primary btn-sm made-this-btn flex-1" 
-                data-id="${recipe.id}" 
+        <button class="btn btn-primary btn-sm made-this-btn"
+                data-id="${recipe.id}"
                 data-name="${escapeHtml(recipe.name)}">
-          ✓ I Made This
+          Made This
         </button>
       </div>
     </div>
   `;
 }
 
-/** Toggle favorite status */
 async function toggleFavorite(id, isFav, btn) {
   try {
-    const method = isFav ? 'DELETE' : 'POST';
-    const res = await fetch(`/api/recipes/${id}/favorite`, { method });
-    if (!res.ok) throw new Error('Failed to update favorite');
-
+    const res = await fetch(`/api/recipes/${id}/favorite`, {
+      method: isFav ? 'DELETE' : 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error();
     btn.classList.toggle('favorited');
-    const label = btn.classList.contains('favorited') ? 'Remove from favorites' : 'Add to favorites';
-    btn.setAttribute('aria-label', label);
-
-    showToast(
-      btn.classList.contains('favorited') ? 'Recipe saved to favorites' : 'Recipe removed from favorites',
-      'success'
-    );
-  } catch (err) {
-    console.error('Favorite error:', err);
+    const isFavNow = btn.classList.contains('favorited');
+    btn.querySelector('svg path').setAttribute('fill', isFavNow ? 'currentColor' : 'none');
+    btn.setAttribute('aria-label', isFavNow ? 'Remove from favorites' : 'Save recipe');
+    showToast(isFavNow ? 'Recipe saved' : 'Recipe removed', 'success');
+  } catch {
     showToast('Failed to update favorite', 'error');
   }
 }
 
-/** Handle "I Made This" */
 async function madeThis(id, name) {
-  if (!confirm(`Mark "${name}" as made? This will remove the used ingredients from your fridge.`)) return;
-
+  if (!confirm(`Mark "${name}" as made? Used ingredients will be removed from your fridge.`)) return;
   try {
-    const res = await fetch(`/api/recipes/${id}/made-this`, { method: 'POST' });
-    if (!res.ok) throw new Error('Failed to process');
+    const res = await fetch(`/api/recipes/${id}/made-this`, { method: 'POST', credentials: 'include' });
+    if (!res.ok) throw new Error();
     const data = await res.json();
-
     const removed = data.removed_items || [];
-    const msg = removed.length > 0
-      ? `Great cooking! Removed: ${removed.join(', ')}`
-      : `Marked "${name}" as made!`;
-    showToast(msg, 'success');
-
-    // Refresh inventory
-    if (window.inventoryModule) {
-      await window.inventoryModule.refreshInventory();
-    }
-  } catch (err) {
-    console.error('Made this error:', err);
+    showToast(removed.length ? `Removed: ${removed.join(', ')}` : `Marked as made`, 'success');
+    if (window.inventoryModule) await window.inventoryModule.refreshInventory();
+  } catch {
     showToast('Failed to process recipe', 'error');
   }
 }
 
-/** Refresh recipes */
 async function refreshRecipes() {
   const grid = document.getElementById('recipe-grid');
-  if (grid) {
-    grid.innerHTML = '<div class="loading-container"><div class="spinner spinner-lg"></div></div>';
-  }
-
+  if (grid) grid.innerHTML = '<div class="loading-container"><div class="spinner spinner-lg"></div></div>';
   try {
     const recipes = await fetchRecipes(_recipeFilters);
     renderRecipeCards(recipes);
-  } catch (err) {
-    console.error('Failed to load recipes:', err);
-    if (grid) {
-      grid.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <div class="empty-state-icon">⚠️</div>
-          <div class="empty-state-title">Failed to load recipes</div>
-          <div class="empty-state-text">Please check your connection and try again.</div>
-        </div>
-      `;
-    }
+  } catch {
+    if (grid) grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-title">Failed to load recipes</div></div>`;
   }
 }
 
-/** Initialize the recipes section */
 function initRecipes() {
-  // Dietary filter chips
   document.querySelectorAll('.dietary-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const diet = chip.dataset.dietary;
       document.querySelectorAll('.dietary-chip').forEach(c => c.classList.remove('active'));
-
-      if (_recipeFilters.dietary === diet) {
-        _recipeFilters.dietary = null;
-      } else {
-        _recipeFilters.dietary = diet;
-        chip.classList.add('active');
-      }
+      _recipeFilters.dietary = _recipeFilters.dietary === diet ? null : diet;
+      if (_recipeFilters.dietary) chip.classList.add('active');
       refreshRecipes();
     });
   });
 
-  // Cuisine filter
   const cuisineSelect = document.getElementById('cuisine-filter');
   if (cuisineSelect) {
     cuisineSelect.addEventListener('change', () => {
@@ -247,21 +243,17 @@ function initRecipes() {
     });
   }
 
-  // Prep time slider
   const prepSlider = document.getElementById('prep-time-slider');
   const prepLabel = document.getElementById('prep-time-label');
   if (prepSlider) {
     prepSlider.addEventListener('input', () => {
       const val = parseInt(prepSlider.value);
       _recipeFilters.max_prep_minutes = val < parseInt(prepSlider.max) ? val : null;
-      if (prepLabel) {
-        prepLabel.textContent = _recipeFilters.max_prep_minutes ? `≤${val} min` : 'Any';
-      }
+      if (prepLabel) prepLabel.textContent = _recipeFilters.max_prep_minutes ? `${val} min` : 'Any';
       refreshRecipes();
     });
   }
 
-  // Favorites toggle
   const favToggle = document.getElementById('favorites-toggle');
   if (favToggle) {
     favToggle.addEventListener('click', () => {
@@ -271,13 +263,11 @@ function initRecipes() {
     });
   }
 
-  // Initial load
   refreshRecipes();
 }
 
 window.recipesModule = { refreshRecipes, initRecipes };
 
-// Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initRecipes);
 } else {

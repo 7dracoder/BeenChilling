@@ -60,11 +60,11 @@ class AIAssistant {
       </div>
 
       <div class="ai-quick-actions">
-        <button class="ai-quick-btn" data-prompt="What can I cook with what I have?">🍳 What can I cook?</button>
-        <button class="ai-quick-btn" data-prompt="What's expiring soon and what should I use first?">⏰ What's expiring?</button>
-        <button class="ai-quick-btn" data-prompt="Give me a quick fridge summary and any tips to reduce waste.">📊 Fridge summary</button>
-        <button class="ai-quick-btn" data-prompt="Suggest a healthy meal I can make today.">🥗 Healthy meal idea</button>
-        <button class="ai-quick-btn" data-prompt="What should I buy next time I go shopping based on what I'm running low on?">🛒 Shopping tips</button>
+        <button class="ai-quick-btn" data-prompt="What can I cook with what I have?">What can I cook?</button>
+        <button class="ai-quick-btn" data-prompt="What's expiring soon and what should I use first?">What's expiring?</button>
+        <button class="ai-quick-btn" data-prompt="Give me a quick fridge summary and any tips to reduce waste.">Fridge summary</button>
+        <button class="ai-quick-btn" data-prompt="Suggest a healthy meal I can make today.">Healthy meal idea</button>
+        <button class="ai-quick-btn" data-prompt="What should I buy next time I go shopping based on what I'm running low on?">Shopping tips</button>
       </div>
 
       <div class="ai-messages" id="ai-messages" role="log" aria-live="polite"></div>

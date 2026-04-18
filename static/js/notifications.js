@@ -103,7 +103,7 @@ function renderWasteReport(report) {
     <div class="report-summary">
       <div class="report-item">
         <div class="report-meta">
-          <span class="report-tag tag-ok">🌿 Consumed</span>
+          <span class="report-tag tag-ok">Consumed</span>
           <span class="report-trend ${getDeltaClass(consumedDelta)}">${formatDelta(consumedDelta)} vs last week</span>
         </div>
         <div class="report-count">${consumed} <small>items</small></div>
@@ -127,7 +127,6 @@ function renderStreak(data) {
   if (!data.gamification_enabled) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">🎮</div>
         <div class="empty-state-title">Gamification disabled</div>
         <div class="empty-state-text">Enable gamification in Settings to track your zero-waste streak.</div>
       </div>
@@ -137,7 +136,9 @@ function renderStreak(data) {
 
   container.innerHTML = `
     <div class="streak-card">
-      <span class="streak-icon" aria-hidden="true">🌿</span>
+      <span class="streak-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 22 12 12"/></svg>
+      </span>
       <div class="streak-number">${data.streak}</div>
       <div class="streak-label">Week${data.streak !== 1 ? 's' : ''} Zero-Waste Streak</div>
       <div class="streak-message">${data.message || ''}</div>
