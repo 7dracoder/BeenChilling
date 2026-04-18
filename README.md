@@ -18,19 +18,57 @@ ClearChill monitors your fridge using a Raspberry Pi with a camera and light sen
 
 ## Tech Stack
 
-Backend: FastAPI, Python 3.11, Supabase
-Frontend: HTML, CSS, JavaScript
-AI: Google Gemini Vision, Replicate
-Hardware: Raspberry Pi 4, OpenCV, GPIO sensors
-Deployment: Digital Ocean (backend), Vercel (frontend)
+**Backend**: FastAPI, Python 3.11, Supabase (auth + database)
+**Frontend**: HTML, CSS, JavaScript
+**AI**: Google Gemini Vision, Replicate
+**Hardware**: Raspberry Pi 4, OpenCV, GPIO sensors
+**Deployment**: Digital Ocean (all-in-one)
 
 ## Quick Start
 
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Copy `.env.example` to `.env` and add your API keys
-4. Run the server: `python -m uvicorn fridge_observer.main:app --reload`
-5. Open http://localhost:8000
+### 1. Clone and Install
+
+```bash
+git clone https://github.com/7dracoder/ClearChill.git
+cd ClearChill
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+
+Copy `.env.example` to `.env` and add your API keys:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Required:
+- `SUPABASE_URL` and `SUPABASE_KEY` - Get from [Supabase](https://supabase.com)
+- `GEMINI_API_KEY` - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- `REPLICATE_API_TOKEN` - Get from [Replicate](https://replicate.com)
+- `SECRET_KEY` - Generate with: `openssl rand -hex 32`
+
+### 3. Run Locally
+
+```bash
+python -m uvicorn fridge_observer.main:app --reload
+```
+
+Open http://localhost:8000
+
+## Deployment
+
+Deploy everything (backend + frontend + database) to Digital Ocean in 30 minutes:
+
+```bash
+# Follow the quick deployment guide
+cat QUICK_DEPLOY.md
+```
+
+**Cost**: $18/month for everything (4GB RAM droplet recommended)
 
 ## Hardware Setup
 
@@ -40,21 +78,9 @@ You'll need:
 - Photoresistor and 10µF capacitor for door detection
 - Protoboard and jumper wires
 
-Total cost is around $70-110. Setup takes about 30 minutes following the hardware guide.
+Total cost: $70-110. Setup takes about 30 minutes.
 
-## Deployment
-
-The backend deploys to Digital Ocean (around $12/month) and the frontend to Vercel (free tier). Both have detailed deployment guides in the docs folder.
-
-After deployment, update your Raspberry Pi's `.env` file to point to your production API URL instead of localhost.
-
-## Documentation
-
-- `QUICK_START_HARDWARE.md` - Hardware setup guide
-- `DEPLOYMENT_DIGITAL_OCEAN.md` - Backend deployment
-- `DEPLOYMENT_VERCEL.md` - Frontend deployment
-- `RASPBERRY_PI_SETUP.md` - Detailed Pi configuration
-- `HARDWARE_INTEGRATION_STATUS.md` - Current feature status
+See `RASPBERRY_PI_SETUP.md` for detailed instructions.
 
 ## How It Works
 
@@ -69,12 +95,17 @@ After deployment, update your Raspberry Pi's `.env` file to point to your produc
 
 The whole process takes about 5-6 seconds from door open to seeing items in your app.
 
-## Testing
+## Testing Hardware Integration
 
-Run the hardware integration tests:
 ```bash
 python test_hardware_integration.py
 ```
+
+## Documentation
+
+- `QUICK_DEPLOY.md` - 30-minute deployment guide for Digital Ocean
+- `RASPBERRY_PI_SETUP.md` - Hardware setup and configuration
+- `.env.example` - Environment variables reference
 
 ## License
 
