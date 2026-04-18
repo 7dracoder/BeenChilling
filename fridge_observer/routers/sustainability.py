@@ -5,12 +5,10 @@ import logging
 import json as _json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from fastapi import Depends
 from pydantic import BaseModel
 from typing import Optional
 
 from fridge_observer.db import get_db
-from fridge_observer.routers.auth_router import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sustainability", tags=["sustainability"])
@@ -52,11 +50,15 @@ def _extract_answer(text: str) -> str:
 # ── Endpoints ─────────────────────────────────────────────────
 
 @router.get("/inventory-items")
-async def get_inventory_items(current_user: dict = Depends(get_current_user)):
-    from fridge_observer.supabase_client import get_supabase
-    sb = get_supabase()
-    result = sb.table("food_items").select("id, name, category").eq("user_id", current_user["sub"]).order("name").execute()
-    return result.data or []
+async def get_inventory_items():
+    """Get all inventory items for EcoScan - synced with dashboard inventory."""
+    from fridge_observer.db import get_db
+    async with get_db() as db:
+        cursor = await db.execute(
+            "SELECT id, name, category FROM food_items ORDER BY name"
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
 
 
 @router.post("/analyse-product")
@@ -208,8 +210,7 @@ Return JSON:
 @router.get("/blueprint-image")
 async def get_blueprint_image(
     product: str,
-    spec: str = "",
-    current_user: dict = Depends(get_current_user)
+    spec: str = ""
 ):
     """
     Generate a technical blueprint image for the new sustainable product.

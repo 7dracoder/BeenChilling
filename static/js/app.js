@@ -201,6 +201,10 @@ function initWebSocket() {
     if (window.inventoryModule && _activeSection === 'inventory') {
       window.inventoryModule.renderInventoryGrid(payload);
     }
+    // Also refresh EcoScan item list when inventory changes
+    if (window.sustainabilityModule && _activeSection === 'sustainability') {
+      window.sustainabilityModule.refreshItems();
+    }
   });
 
   // Notifications
