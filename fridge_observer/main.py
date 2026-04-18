@@ -60,6 +60,14 @@ def _is_valid_session(token: str | None) -> bool:
 async def lifespan(app: FastAPI):
     logger.info("Starting Fridge Observer (Supabase backend)...")
 
+    # Initialize SQLite database (create tables if they don't exist)
+    from fridge_observer.db import init_db
+    try:
+        await init_db()
+        logger.info("Database initialized.")
+    except Exception as e:
+        logger.warning("Database initialization skipped: %s", e)
+
     # Load default config
     await config_module.reload()
     logger.info("Configuration loaded.")
