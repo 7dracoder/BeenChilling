@@ -73,6 +73,14 @@ async def ask_ai(body: AskRequest):
     General-purpose AI Q&A with inventory context.
     Collects the full K2 response, strips reasoning, then streams the clean answer.
     """
+    # Check if K2 API key is configured
+    from fridge_observer.ai_client import K2_API_KEY
+    if not K2_API_KEY or K2_API_KEY == "":
+        raise HTTPException(
+            status_code=503,
+            detail="AI assistant is not configured. Please set K2_API_KEY in your .env file."
+        )
+    
     inventory = await _get_inventory()
 
     async def generate():
@@ -104,9 +112,22 @@ async def ask_ai(body: AskRequest):
                 chunk = word + (" " if i < len(words) - 1 else "")
                 yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
+        except httpx.HTTPStatusError as exc:
+            logger.error("K2 API HTTP error: %s - %s", exc.response.status_code, exc.response.text)
+            if exc.response.status_code == 401:
+                yield f"data: AI assistant authentication failed. Please check your K2_API_KEY.\n\n"
+            elif exc.response.status_code == 429:
+                yield f"data: AI assistant is busy. Please try again in a moment.\n\n"
+            else:
+                yield f"data: AI assistant encountered an error. Please try again later.\n\n"
+            yield "data: [DONE]\n\n"
+        except httpx.TimeoutException:
+            logger.error("K2 API timeout")
+            yield f"data: AI assistant timed out. Please try again.\n\n"
+            yield "data: [DONE]\n\n"
         except Exception as exc:
-            logger.error("K2 ask error: %s", exc)
-            yield f"data: Sorry, I couldn't process that request.\n\n"
+            logger.error("K2 ask error: %s", exc, exc_info=True)
+            yield f"data: Sorry, I couldn't process that request. Error: {str(exc)[:100]}\n\n"
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -115,6 +136,14 @@ async def ask_ai(body: AskRequest):
 @router.post("/suggest-recipes")
 async def suggest_recipes(body: AskRequest):
     """Ask K2 to suggest recipes based on current inventory."""
+    # Check if K2 API key is configured
+    from fridge_observer.ai_client import K2_API_KEY
+    if not K2_API_KEY or K2_API_KEY == "":
+        raise HTTPException(
+            status_code=503,
+            detail="AI assistant is not configured. Please set K2_API_KEY in your .env file."
+        )
+    
     inventory = await _get_inventory()
 
     async def generate():
@@ -149,8 +178,15 @@ async def suggest_recipes(body: AskRequest):
                 chunk = word + (" " if i < len(words) - 1 else "")
                 yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
+        except httpx.HTTPStatusError as exc:
+            logger.error("K2 API HTTP error: %s", exc)
+            if exc.response.status_code == 401:
+                yield f"data: AI authentication failed. Please check your K2_API_KEY.\n\n"
+            else:
+                yield f"data: AI assistant error. Please try again later.\n\n"
+            yield "data: [DONE]\n\n"
         except Exception as exc:
-            logger.error("K2 suggest-recipes error: %s", exc)
+            logger.error("K2 suggest-recipes error: %s", exc, exc_info=True)
             yield f"data: Sorry, I couldn't generate recipe suggestions.\n\n"
             yield "data: [DONE]\n\n"
 
@@ -198,6 +234,14 @@ async def identify_food(file: UploadFile = File(...)):
 @router.get("/inventory-summary")
 async def inventory_summary():
     """Ask K2 to analyse the current inventory and provide a smart summary."""
+    # Check if K2 API key is configured
+    from fridge_observer.ai_client import K2_API_KEY
+    if not K2_API_KEY or K2_API_KEY == "":
+        raise HTTPException(
+            status_code=503,
+            detail="AI assistant is not configured. Please set K2_API_KEY in your .env file."
+        )
+    
     inventory = await _get_inventory()
 
     async def generate():
@@ -226,8 +270,15 @@ async def inventory_summary():
                 chunk = word + (" " if i < len(words) - 1 else "")
                 yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
+        except httpx.HTTPStatusError as exc:
+            logger.error("K2 API HTTP error: %s", exc)
+            if exc.response.status_code == 401:
+                yield f"data: AI authentication failed. Please check your K2_API_KEY.\n\n"
+            else:
+                yield f"data: AI assistant error. Please try again later.\n\n"
+            yield "data: [DONE]\n\n"
         except Exception as exc:
-            logger.error("K2 inventory-summary error: %s", exc)
+            logger.error("K2 inventory-summary error: %s", exc, exc_info=True)
             yield f"data: Unable to generate summary.\n\n"
             yield "data: [DONE]\n\n"
 

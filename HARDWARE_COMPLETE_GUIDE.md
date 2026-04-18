@@ -1,0 +1,752 @@
+# Complete Hardware Setup Guide - Raspberry Pi + Google Home
+
+**Single guide for complete hardware integration with voice control**
+
+---
+
+## 📊 Data Storage Flow - WHERE DATA LIVES
+
+### **While Door is OPEN (Capturing):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  RASPBERRY PI - LOCAL MEMORY (RAM)                          │
+├─────────────────────────────────────────────────────────────┤
+│  • Frames stored in Python list/array                       │
+│  • NOT saved to disk                                        │
+│  • NOT sent to server yet                                   │
+│  • Temporary storage only                                   │
+│                                                             │
+│  Example:                                                   │
+│  frames = []  # Empty list                                  │
+│  while door_open:                                           │
+│      frame = webcam.capture()                               │
+│      frames.append(frame)  # Store in RAM                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Storage Location:** Raspberry Pi RAM (temporary)  
+**Size:** ~20-30 frames × 500KB = ~10-15 MB  
+**Duration:** Only while door is open (5-30 seconds)  
+**Deleted:** After processing is complete
+
+---
+
+### **When Door CLOSES (Processing):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  RASPBERRY PI - PROCESSING                                   │
+├─────────────────────────────────────────────────────────────┤
+│  1. Door closes → Stop capturing                            │
+│  2. Run YOLOv8 on ALL frames (in RAM)                       │
+│  3. Detect items: "Milk", "Eggs", "Chicken"                 │
+│  4. Aggregate results (count occurrences)                   │
+│  5. Create JSON payload                                     │
+│  6. Send to your PC via HTTP POST                           │
+│  7. DELETE all frames from RAM                              │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+                    (WiFi/HTTP)
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  YOUR PC - SUPABASE DATABASE (PERMANENT)                    │
+├─────────────────────────────────────────────────────────────┤
+│  Table: pending_items                                       │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ id | item_name | category | confidence | created_at │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │ 1  | Milk      | dairy    | 0.92       | 14:30:25  │  │
+│  │ 2  | Eggs      | dairy    | 0.88       | 14:30:25  │  │
+│  │ 3  | Chicken   | meat     | 0.85       | 14:30:25  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                             │
+│  Table: capture_sessions                                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ session_id | frames | items | started_at | ended_at │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │ sess_001   | 20     | 3     | 14:30:05   | 14:30:25 │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Storage Location:** Supabase Cloud Database (permanent)  
+**Size:** ~1-2 KB per item (just metadata, no images)  
+**Duration:** Until user confirms via voice or 24 hours  
+**Images:** NEVER stored - only detection results
+
+---
+
+## 🔄 Complete Data Flow
+
+```
+TIME: 14:30:00 - Door Opens
+├─> Light sensor: 50 lux → 200 lux (door opened)
+├─> Raspberry Pi: Start capture session
+├─> Storage: frames = [] (empty list in RAM)
+
+TIME: 14:30:05 - Capturing (5 seconds elapsed)
+├─> Webcam: Capture frame #1 → Store in RAM
+├─> Webcam: Capture frame #2 → Store in RAM
+├─> Webcam: Capture frame #3 → Store in RAM
+├─> Webcam: Capture frame #4 → Store in RAM
+├─> Webcam: Capture frame #5 → Store in RAM
+├─> Storage: frames = [frame1, frame2, frame3, frame4, frame5]
+├─> Location: Raspberry Pi RAM only
+
+TIME: 14:30:15 - Still Capturing (15 seconds elapsed)
+├─> Webcam: Capture frame #15 → Store in RAM
+├─> Storage: frames = [frame1...frame15]
+├─> Location: Raspberry Pi RAM only
+
+TIME: 14:30:25 - Door Closes
+├─> Light sensor: 200 lux → 50 lux (door closed)
+├─> Raspberry Pi: Stop capturing
+├─> Storage: frames = [frame1...frame20] (20 frames total)
+├─> Location: Still in Raspberry Pi RAM
+
+TIME: 14:30:26 - Processing Starts
+├─> YOLOv8: Analyze frame #1 → Detect: Milk (0.91)
+├─> YOLOv8: Analyze frame #2 → Detect: Milk (0.93), Eggs (0.85)
+├─> YOLOv8: Analyze frame #3 → Detect: Milk (0.92), Eggs (0.88)
+├─> ...continue for all 20 frames...
+├─> YOLOv8: Analyze frame #20 → Detect: Milk (0.90), Eggs (0.87), Chicken (0.85)
+├─> Location: Processing in Raspberry Pi RAM
+
+TIME: 14:30:30 - Aggregation (4 seconds processing)
+├─> Count occurrences:
+│   ├─> Milk: appeared in 18/20 frames → confidence: 0.92
+│   ├─> Eggs: appeared in 15/20 frames → confidence: 0.88
+│   └─> Chicken: appeared in 12/20 frames → confidence: 0.85
+├─> Create JSON payload:
+│   {
+│     "session_id": "sess_20260418_143025",
+│     "items_added": [
+│       {"name": "Milk", "confidence": 0.92, "category": "dairy"},
+│       {"name": "Eggs", "confidence": 0.88, "category": "dairy"},
+│       {"name": "Chicken", "confidence": 0.85, "category": "meat"}
+│     ]
+│   }
+
+TIME: 14:30:31 - Send to Backend
+├─> HTTP POST to: http://192.168.1.101:8000/api/hardware/session-complete
+├─> Payload: JSON with 3 detected items
+├─> DELETE all frames from RAM (free memory)
+├─> Location: Data now in transit over WiFi
+
+TIME: 14:30:32 - Backend Receives
+├─> Your PC receives JSON payload
+├─> Classify each item:
+│   ├─> Milk: packaged=true, needs_expiry=true
+│   ├─> Eggs: packaged=true, needs_expiry=true
+│   └─> Chicken: packaged=false, estimated_expiry=3 days
+├─> Store in Supabase:
+│   ├─> INSERT INTO pending_items (Milk, Eggs, Chicken)
+│   └─> INSERT INTO capture_sessions (sess_20260418_143025)
+├─> Location: Supabase Cloud Database (PERMANENT)
+
+TIME: 14:30:33 - Trigger Google Home
+├─> Send IFTTT webhook
+├─> Google Home speaks: "I detected 3 new items in your fridge"
+
+TIME: 14:30:40 - User Responds
+├─> User: "Hey Google, what are the pending items?"
+├─> Google Home: Fetch from Supabase → "You have Milk, Eggs, Chicken"
+├─> Google Home: "How many Milk?"
+├─> User: "2 bottles"
+├─> Google Home: "Expiry date?"
+├─> User: "April 25th"
+├─> UPDATE Supabase:
+│   ├─> DELETE FROM pending_items WHERE id=1
+│   └─> INSERT INTO food_items (Milk, quantity=2, expiry=2026-04-25)
+├─> Location: Supabase Cloud Database (PERMANENT)
+```
+
+---
+
+## 📦 Storage Summary
+
+| Stage | Location | Data | Duration | Size |
+|-------|----------|------|----------|------|
+| **Door Open** | Raspberry Pi RAM | Raw frames | 5-30 sec | 10-15 MB |
+| **Processing** | Raspberry Pi RAM | Frames + detections | 2-5 sec | 10-15 MB |
+| **After Processing** | Raspberry Pi RAM | DELETED | 0 sec | 0 MB |
+| **Pending Items** | Supabase Database | Item metadata | 24 hours | 1-2 KB |
+| **Final Inventory** | Supabase Database | Confirmed items | Permanent | 1-2 KB |
+
+**Key Points:**
+- ✅ Images NEVER stored permanently
+- ✅ Images NEVER sent over network
+- ✅ Only detection results (JSON) sent to backend
+- ✅ Raspberry Pi RAM cleared after each session
+- ✅ Database only stores item names and metadata
+
+---
+
+## 🛠️ Hardware Setup
+
+### **What You Need:**
+
+#### Required Hardware:
+- **Raspberry Pi 4** (2GB RAM minimum, 4GB recommended)
+- **Logitech Webcam** (USB, 720p or higher)
+- **Light Sensor** (for door detection)
+  - Options: LDR (Light Dependent Resistor) or SenseCAP D1
+- **MicroSD Card** (32GB minimum)
+- **Power Supply** (5V 3A for Pi 4)
+- **Google Home** device (any model)
+
+#### Optional Hardware:
+- **Magnetic Mount** for webcam
+- **Case** for Raspberry Pi
+- **Cooling Fan** (recommended for continuous operation)
+
+---
+
+## 🔧 Raspberry Pi Setup
+
+### **Step 1: Install Raspberry Pi OS**
+
+```bash
+# 1. Download Raspberry Pi Imager
+# https://www.raspberrypi.com/software/
+
+# 2. Flash Raspberry Pi OS Lite (64-bit) to SD card
+
+# 3. Enable SSH before first boot:
+# Create empty file named "ssh" in boot partition
+
+# 4. Configure WiFi before first boot:
+# Create file "wpa_supplicant.conf" in boot partition:
+```
+
+Create `wpa_supplicant.conf`:
+```
+country=US
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+network={
+    ssid="YOUR_WIFI_NAME"
+    psk="YOUR_WIFI_PASSWORD"
+    key_mgmt=WPA-PSK
+}
+```
+
+### **Step 2: First Boot**
+
+```bash
+# 1. Insert SD card into Raspberry Pi
+# 2. Connect power
+# 3. Wait 2 minutes for boot
+
+# 4. Find Raspberry Pi IP address:
+# Check your router's connected devices
+# Or use: ping raspberrypi.local
+
+# 5. SSH into Raspberry Pi:
+ssh pi@raspberrypi.local
+# Default password: raspberry
+
+# 6. Change default password:
+passwd
+```
+
+### **Step 3: Update System**
+
+```bash
+# Update package lists
+sudo apt update
+
+# Upgrade all packages
+sudo apt upgrade -y
+
+# Install essential tools
+sudo apt install -y git python3-pip python3-venv vim
+
+# Reboot
+sudo reboot
+```
+
+### **Step 4: Install Python Dependencies**
+
+```bash
+# SSH back in after reboot
+ssh pi@raspberrypi.local
+
+# Create project directory
+mkdir -p ~/fridge-observer
+cd ~/fridge-observer
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install --upgrade pip
+pip install opencv-python-headless
+pip install google-generativeai
+pip install requests
+pip install python-dotenv
+pip install gpiozero  # For light sensor
+pip install pillow  # For image processing
+```
+
+### **Step 5: Test Google Gemini API**
+
+```bash
+# Test Gemini API connection
+python3 << EOF
+import google.generativeai as genai
+import os
+
+# Set your API key (temporary test)
+genai.configure(api_key="YOUR_GEMINI_API_KEY")
+
+# Test the API
+model = genai.GenerativeModel('gemini-1.5-flash')
+response = model.generate_content("Hello, Gemini!")
+print("✓ Gemini API working!")
+print(f"Response: {response.text}")
+EOF
+```
+
+### **Step 6: Test Webcam**
+
+```bash
+# Test webcam connection
+python3 << EOF
+import cv2
+cap = cv2.VideoCapture(0)
+if cap.isOpened():
+    print("✓ Webcam detected!")
+    ret, frame = cap.read()
+    if ret:
+        print(f"✓ Frame captured: {frame.shape}")
+    cap.release()
+else:
+    print("✗ Webcam NOT detected")
+EOF
+```
+
+### **Step 6b: Get Gemini API Key**
+
+```bash
+# 1. Go to: https://makersuite.google.com/app/apikey
+# 2. Click "Create API Key"
+# 3. Copy the key (starts with "AIza...")
+# 4. Add to .env file (we'll do this in Step 9)
+```
+
+### **Step 7: Test Light Sensor**
+
+```bash
+# For LDR sensor on GPIO pin 17:
+python3 << EOF
+from gpiozero import LightSensor
+sensor = LightSensor(17)
+print(f"Light level: {sensor.value}")
+print("✓ Light sensor working!" if sensor.value > 0 else "✗ Check wiring")
+EOF
+```
+
+---
+
+## 📝 Create Raspberry Pi Script
+
+### **Create the main script:**
+
+```bash
+cd ~/fridge-observer
+nano raspberry_pi_sensor.py
+```
+
+Paste this complete script:
+
+```python
+#!/usr/bin/env python3
+"""
+Fridge Observer - Raspberry Pi Sensor Script
+Captures images when door opens, processes with Google Gemini Vision, sends results to backend
+"""
+import cv2
+import time
+import requests
+import json
+import base64
+from datetime import datetime
+from gpiozero import LightSensor
+from PIL import Image
+import io
+import os
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+# Load environment variables
+load_dotenv()
+
+# Configuration
+BACKEND_URL = os.getenv("BACKEND_URL", "http://192.168.1.101:8000")
+USER_EMAIL = os.getenv("USER_EMAIL")
+USER_PASSWORD = os.getenv("USER_PASSWORD")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+LIGHT_SENSOR_PIN = int(os.getenv("LIGHT_SENSOR_PIN", "17"))
+DOOR_OPEN_THRESHOLD = float(os.getenv("DOOR_OPEN_THRESHOLD", "0.5"))
+CAPTURE_FPS = int(os.getenv("CAPTURE_FPS", "1"))
+
+# Initialize
+print("🍓 Fridge Observer Sensor Starting...")
+print(f"Backend URL: {BACKEND_URL}")
+
+# Configure Gemini API
+if not GEMINI_API_KEY:
+    print("✗ GEMINI_API_KEY not set in .env file")
+    exit(1)
+
+print("Configuring Google Gemini API...")
+genai.configure(api_key=GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+print("✓ Gemini API configured")
+
+# Initialize webcam
+print("Initializing webcam...")
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("✗ Failed to open webcam")
+    exit(1)
+print("✓ Webcam ready")
+
+# Initialize light sensor
+print("Initializing light sensor...")
+light_sensor = LightSensor(LIGHT_SENSOR_PIN)
+print("✓ Light sensor ready")
+
+# Authenticate and get JWT token
+print("Authenticating...")
+try:
+    auth_response = requests.post(
+        f"{BACKEND_URL}/api/auth/login",
+        json={"email": USER_EMAIL, "password": USER_PASSWORD}
+    )
+    auth_response.raise_for_status()
+    JWT_TOKEN = auth_response.json()["access_token"]
+    print("✓ Authenticated")
+except Exception as e:
+    print(f"✗ Authentication failed: {e}")
+    exit(1)
+
+# Headers for API requests
+HEADERS = {
+    "Authorization": f"Bearer {JWT_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+
+def is_door_open():
+    """Check if fridge door is open based on light sensor"""
+    return light_sensor.value > DOOR_OPEN_THRESHOLD
+
+
+def frame_to_pil(frame):
+    """Convert OpenCV frame to PIL Image"""
+    # Convert BGR to RGB
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(rgb_frame)
+
+
+def analyze_frames_with_gemini(frames):
+    """
+    Analyze multiple frames with Google Gemini Vision API
+    Returns list of detected food items
+    """
+    print("Analyzing frames with Google Gemini Vision...")
+    
+    # Select key frames (first, middle, last) to reduce API calls
+    key_frame_indices = [0, len(frames) // 2, len(frames) - 1]
+    key_frames = [frames[i] for i in key_frame_indices if i < len(frames)]
+    
+    all_detections = {}
+    
+    for i, frame in enumerate(key_frames):
+        try:
+            # Convert frame to PIL Image
+            pil_image = frame_to_pil(frame)
+            
+            # Create prompt for Gemini
+            prompt = """You are a food identification assistant for a smart fridge system.
+Analyze this image and identify all food items visible.
+
+Return ONLY a JSON array of objects with this exact format:
+[
+  {"name": "Milk", "category": "dairy", "confidence": 0.95},
+  {"name": "Eggs", "category": "dairy", "confidence": 0.90}
+]
+
+Categories must be one of: fruits, vegetables, dairy, beverages, meat, packaged_goods
+
+Rules:
+- Be specific (e.g., "Chicken Breast" not just "Chicken")
+- Include brand names if visible
+- Only include items you're confident about (>70% confidence)
+- Return empty array [] if no food items visible
+"""
+            
+            # Call Gemini API
+            response = gemini_model.generate_content([prompt, pil_image])
+            
+            # Parse response
+            response_text = response.text.strip()
+            
+            # Extract JSON from response (handle markdown code blocks)
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+            
+            items = json.loads(response_text)
+            
+            # Aggregate detections
+            for item in items:
+                name = item.get("name", "Unknown")
+                confidence = item.get("confidence", 0.5)
+                category = item.get("category", "packaged_goods")
+                
+                if name not in all_detections:
+                    all_detections[name] = {
+                        "confidences": [],
+                        "category": category
+                    }
+                all_detections[name]["confidences"].append(confidence)
+            
+            print(f"  Frame {i+1}/{len(key_frames)} analyzed: {len(items)} items", end='\r')
+            
+        except Exception as e:
+            print(f"\n  ✗ Error analyzing frame {i+1}: {e}")
+            continue
+    
+    print(f"\n✓ Gemini analysis complete")
+    
+    # Aggregate results
+    items_added = []
+    for item_name, data in all_detections.items():
+        avg_confidence = sum(data["confidences"]) / len(data["confidences"])
+        
+        items_added.append({
+            "name": item_name,
+            "confidence": round(avg_confidence, 2),
+            "category": data["category"]
+        })
+    
+    return items_added
+
+
+def capture_session():
+    """Capture frames while door is open, process with Gemini, send results"""
+    session_id = f"sess_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    frames = []
+    started_at = datetime.now()
+    
+    print(f"\n📸 Capture session started: {session_id}")
+    print("Capturing frames...")
+    
+    # Capture frames while door is open
+    frame_count = 0
+    while is_door_open():
+        ret, frame = cap.read()
+        if ret:
+            frames.append(frame)
+            frame_count += 1
+            print(f"  Frame {frame_count} captured", end='\r')
+        time.sleep(1.0 / CAPTURE_FPS)
+    
+    ended_at = datetime.now()
+    duration = (ended_at - started_at).total_seconds()
+    
+    print(f"\n✓ Captured {len(frames)} frames in {duration:.1f} seconds")
+    
+    if len(frames) == 0:
+        print("No frames captured, skipping")
+        return
+    
+    # Analyze frames with Gemini
+    items_added = analyze_frames_with_gemini(frames)
+    
+    print(f"✓ Detected {len(items_added)} items: {[item['name'] for item in items_added]}")
+    
+    # Send results to backend
+    payload = {
+        "session_id": session_id,
+        "started_at": started_at.isoformat() + "Z",
+        "ended_at": ended_at.isoformat() + "Z",
+        "duration_seconds": int(duration),
+        "frames_captured": len(frames),
+        "items_added": items_added,
+        "items_removed": [],
+        "low_confidence_items": []
+    }
+    
+    try:
+        print("Sending results to backend...")
+        response = requests.post(
+            f"{BACKEND_URL}/api/hardware/session-complete",
+            json=payload,
+            headers=HEADERS,
+            timeout=10
+        )
+        response.raise_for_status()
+        result = response.json()
+        print(f"✓ Backend response: {result['status']}")
+        print(f"✓ Created {result['pending_items_created']} pending items")
+    except Exception as e:
+        print(f"✗ Failed to send results: {e}")
+    
+    # Clear frames from memory
+    frames.clear()
+    print("✓ Memory cleared\n")
+
+
+# Main loop
+print("\n✓ System ready - Waiting for door events...\n")
+
+try:
+    door_was_open = False
+    
+    while True:
+        door_is_open = is_door_open()
+        
+        # Door just opened
+        if door_is_open and not door_was_open:
+            print("🚪 Door opened")
+            door_was_open = True
+        
+        # Door just closed
+        elif not door_is_open and door_was_open:
+            print("🚪 Door closed")
+            door_was_open = False
+            capture_session()
+        
+        time.sleep(0.1)  # Check every 100ms
+
+except KeyboardInterrupt:
+    print("\n\n👋 Shutting down...")
+    cap.release()
+    print("✓ Cleanup complete")
+```
+
+Save and exit (Ctrl+X, Y, Enter)
+
+---
+
+## ⚙️ Configure Environment
+
+```bash
+# Create .env file
+cd ~/fridge-observer
+nano .env
+```
+
+Add configuration:
+```bash
+# Backend Configuration
+BACKEND_URL=http://192.168.1.101:8000  # Your PC's IP
+USER_EMAIL=your_email@example.com
+USER_PASSWORD=your_password
+
+# Google Gemini API
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Hardware Configuration
+LIGHT_SENSOR_PIN=17
+DOOR_OPEN_THRESHOLD=0.5
+CAPTURE_FPS=1
+```
+
+Save and exit
+
+---
+
+## 🧪 Test the System
+
+```bash
+# Activate virtual environment
+cd ~/fridge-observer
+source venv/bin/activate
+
+# Run the script
+python3 raspberry_pi_sensor.py
+
+# You should see:
+# 🍓 Fridge Observer Sensor Starting...
+# ✓ Model loaded
+# ✓ Webcam ready
+# ✓ Light sensor ready
+# ✓ Authenticated
+# ✓ System ready - Waiting for door events...
+```
+
+**Test by covering/uncovering the light sensor to simulate door open/close**
+
+---
+
+## 🚀 Auto-Start on Boot
+
+```bash
+# Create systemd service
+sudo nano /etc/systemd/system/fridge-observer.service
+```
+
+Add:
+```ini
+[Unit]
+Description=Fridge Observer Sensor
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/fridge-observer
+Environment="PATH=/home/pi/fridge-observer/venv/bin"
+ExecStart=/home/pi/fridge-observer/venv/bin/python3 /home/pi/fridge-observer/raspberry_pi_sensor.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable fridge-observer
+sudo systemctl start fridge-observer
+sudo systemctl status fridge-observer
+```
+
+View logs:
+```bash
+sudo journalctl -u fridge-observer -f
+```
+
+---
+
+## ✅ Complete Setup Checklist
+
+- [ ] Raspberry Pi OS installed
+- [ ] WiFi configured
+- [ ] Python dependencies installed
+- [ ] Gemini API key obtained
+- [ ] Webcam tested
+- [ ] Light sensor tested
+- [ ] Script created
+- [ ] Environment configured (.env with GEMINI_API_KEY)
+- [ ] Backend reachable
+- [ ] Authentication working
+- [ ] Auto-start enabled
+- [ ] System tested end-to-end
+
+---
+
+## 🎉 You're Done!
+
+Your Raspberry Pi is now ready to detect items and trigger Google Home notifications!
+
+**Next:** Follow `QUICK_VOICE_SETUP.md` to configure IFTTT and Google Home.

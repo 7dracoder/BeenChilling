@@ -181,49 +181,113 @@ async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional
 
 async def generate_food_item_image(item_name: str, category: str = "") -> Optional[bytes]:
     """Get a food item photo — uses Unsplash for accurate food images."""
-    name_lower = item_name.lower()
+    name_lower = item_name.lower().strip()
     
-    # Map common items to better search terms for Unsplash
+    # Comprehensive food item mapping for accurate image search
     item_map = {
-        "milk": "milk glass dairy",
-        "eggs": "eggs fresh",
-        "chicken": "raw chicken meat",
-        "salmon": "salmon fish",
-        "spinach": "spinach leaves",
-        "mushrooms": "mushrooms fresh",
-        "tomatoes": "tomatoes red",
-        "cheese": "cheese dairy",
-        "butter": "butter dairy",
-        "lemon": "lemon citrus",
-        "pasta": "pasta dry",
-        "rice": "rice grain",
-        "broccoli": "broccoli vegetable",
-        "carrots": "carrots orange",
-        "potatoes": "potatoes",
-        "onion": "onion vegetable",
-        "garlic": "garlic",
-        "zucchini": "zucchini",
-        "asparagus": "asparagus",
-        "bread": "bread loaf",
-        "apple": "apple fruit",
-        "banana": "banana fruit",
-        "orange": "orange citrus",
-        "strawberry": "strawberries",
-        "yogurt": "yogurt dairy",
+        # Dairy & Eggs
+        "milk": "milk glass dairy", "whole milk": "milk bottle", "skim milk": "milk glass",
+        "eggs": "eggs fresh", "egg": "eggs fresh", "butter": "butter dairy",
+        "cheese": "cheese dairy", "cheddar": "cheddar cheese", "mozzarella": "mozzarella cheese",
+        "parmesan": "parmesan cheese", "cream cheese": "cream cheese", "feta": "feta cheese",
+        "yogurt": "yogurt dairy", "greek yogurt": "greek yogurt", "sour cream": "sour cream",
+        "heavy cream": "cream dairy", "whipping cream": "whipping cream",
+        
+        # Meat & Poultry
+        "chicken": "raw chicken meat", "chicken breast": "chicken breast raw",
+        "chicken thighs": "chicken thighs", "ground beef": "ground beef raw",
+        "beef": "beef meat", "steak": "beef steak raw", "pork": "pork meat",
+        "bacon": "bacon strips", "sausage": "sausages", "ham": "ham sliced",
+        "turkey": "turkey meat", "lamb": "lamb meat",
+        
+        # Seafood
+        "salmon": "salmon fish", "tuna": "tuna fish", "shrimp": "shrimp seafood",
+        "cod": "cod fish", "tilapia": "tilapia fish", "crab": "crab seafood",
+        "lobster": "lobster", "mussels": "mussels seafood",
+        
+        # Vegetables
+        "tomato": "tomatoes red", "tomatoes": "tomatoes red", "lettuce": "lettuce green",
+        "spinach": "spinach leaves", "kale": "kale leaves", "broccoli": "broccoli vegetable",
+        "cauliflower": "cauliflower", "carrots": "carrots orange", "carrot": "carrots orange",
+        "celery": "celery stalks", "cucumber": "cucumber green", "bell pepper": "bell peppers",
+        "peppers": "bell peppers", "onion": "onion vegetable", "onions": "onions",
+        "garlic": "garlic cloves", "ginger": "ginger root", "potato": "potatoes",
+        "potatoes": "potatoes", "sweet potato": "sweet potatoes", "zucchini": "zucchini",
+        "eggplant": "eggplant", "asparagus": "asparagus", "green beans": "green beans",
+        "peas": "peas green", "corn": "corn cob", "mushrooms": "mushrooms fresh",
+        "mushroom": "mushrooms fresh", "avocado": "avocado", "cabbage": "cabbage",
+        "brussels sprouts": "brussels sprouts", "radish": "radishes", "beets": "beets",
+        
+        # Fruits
+        "apple": "apple fruit", "apples": "apples red", "banana": "banana fruit",
+        "bananas": "bananas yellow", "orange": "orange citrus", "oranges": "oranges",
+        "lemon": "lemon citrus", "lemons": "lemons yellow", "lime": "lime citrus",
+        "strawberry": "strawberries", "strawberries": "strawberries fresh",
+        "blueberry": "blueberries", "blueberries": "blueberries fresh",
+        "raspberry": "raspberries", "raspberries": "raspberries fresh",
+        "blackberry": "blackberries", "grapes": "grapes", "watermelon": "watermelon",
+        "melon": "melon", "cantaloupe": "cantaloupe", "pineapple": "pineapple",
+        "mango": "mango fruit", "peach": "peach fruit", "pear": "pear fruit",
+        "plum": "plum fruit", "cherry": "cherries", "cherries": "cherries red",
+        "kiwi": "kiwi fruit", "pomegranate": "pomegranate", "papaya": "papaya",
+        
+        # Grains & Bread
+        "bread": "bread loaf", "white bread": "white bread", "wheat bread": "wheat bread",
+        "bagel": "bagels", "croissant": "croissant", "tortilla": "tortillas",
+        "rice": "rice grain", "white rice": "white rice", "brown rice": "brown rice",
+        "pasta": "pasta dry", "spaghetti": "spaghetti pasta", "penne": "penne pasta",
+        "quinoa": "quinoa grain", "oats": "oats", "cereal": "cereal breakfast",
+        
+        # Condiments & Sauces
+        "ketchup": "ketchup bottle", "mustard": "mustard", "mayonnaise": "mayonnaise",
+        "mayo": "mayonnaise", "hot sauce": "hot sauce", "soy sauce": "soy sauce",
+        "olive oil": "olive oil bottle", "vegetable oil": "cooking oil",
+        "vinegar": "vinegar bottle", "salad dressing": "salad dressing",
+        
+        # Beverages
+        "water": "water bottle", "juice": "juice glass", "orange juice": "orange juice",
+        "apple juice": "apple juice", "soda": "soda can", "beer": "beer bottle",
+        "wine": "wine bottle", "coffee": "coffee", "tea": "tea",
+        
+        # Packaged Goods
+        "canned tomatoes": "canned tomatoes", "beans": "beans", "chickpeas": "chickpeas",
+        "lentils": "lentils", "peanut butter": "peanut butter jar", "jam": "jam jar",
+        "jelly": "jelly jar", "honey": "honey jar", "maple syrup": "maple syrup",
+        "flour": "flour", "sugar": "sugar", "salt": "salt", "pepper": "black pepper",
+        
+        # Frozen
+        "ice cream": "ice cream", "frozen pizza": "frozen pizza", "frozen vegetables": "frozen vegetables",
+        
+        # Herbs & Spices
+        "basil": "basil leaves", "parsley": "parsley", "cilantro": "cilantro",
+        "rosemary": "rosemary", "thyme": "thyme", "oregano": "oregano",
+        "mint": "mint leaves", "dill": "dill",
     }
     
+    # Try exact match first
     query = item_map.get(name_lower)
+    
+    # If no exact match, try partial matches
     if not query:
-        # Build from name and category
+        for key, value in item_map.items():
+            if key in name_lower or name_lower in key:
+                query = value
+                break
+    
+    # If still no match, build from name and category
+    if not query:
         cat_map = {
-            "fruits": "fruit",
-            "vegetables": "vegetable",
-            "dairy": "dairy",
-            "meat": "meat",
-            "beverages": "drink"
+            "fruits": "fruit fresh",
+            "vegetables": "vegetable fresh",
+            "dairy": "dairy product",
+            "meat": "meat raw",
+            "beverages": "drink beverage",
+            "packaged_goods": "food product"
         }
         cat_hint = cat_map.get(category, "food")
-        query = f"{name_lower} {cat_hint}"
+        # Clean up the item name for better search
+        clean_name = name_lower.replace("_", " ").replace("-", " ")
+        query = f"{clean_name} {cat_hint}"
     
     # Try Unsplash first (more accurate)
     result = await _fetch_unsplash_photo(query, 400, 400)
