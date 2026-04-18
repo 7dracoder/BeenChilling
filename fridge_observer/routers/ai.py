@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
