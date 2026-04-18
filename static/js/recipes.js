@@ -275,4 +275,11 @@ function initRecipes() {
   refreshRecipes();
 }
 
-window.recipesModule = { refreshRecipes };
+window.recipesModule = { refreshRecipes, initRecipes };
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initRecipes);
+} else {
+  initRecipes();
+}

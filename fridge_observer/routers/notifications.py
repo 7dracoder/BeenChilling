@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Notifications REST API — backed by Supabase."""
 import logging
 from datetime import datetime, timedelta, timezone
@@ -20,20 +22,39 @@ async def get_activity_log(current_user: dict = Depends(get_current_user)):
 @router.get("/weekly-report")
 async def get_weekly_report(current_user: dict = Depends(get_current_user)):
     sb = get_supabase()
-    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    two_weeks_ago = (now - timedelta(days=14)).isoformat()
 
-    result = sb.table("activity_log").select("action").eq("user_id", current_user["sub"]).gte("occurred_at", week_ago).execute()
+    # Get data for 14 days
+    result = sb.table("activity_log").select("action, occurred_at").eq("user_id", current_user["sub"]).gte("occurred_at", two_weeks_ago).execute()
     rows = result.data or []
 
-    expired = sum(1 for r in rows if r["action"] == "expired")
-    consumed = sum(1 for r in rows if r["action"] == "removed")
-    added = sum(1 for r in rows if r["action"] == "added")
+    # Current week stats
+    this_week = [r for r in rows if r["occurred_at"] >= week_ago]
+    expired = sum(1 for r in this_week if r["action"] == "expired")
+    consumed = sum(1 for r in this_week if r["action"] == "removed")
+    added = sum(1 for r in this_week if r["action"] == "added")
+
+    # Previous week stats
+    prev_week = [r for r in rows if r["occurred_at"] < week_ago]
+    prev_expired = sum(1 for r in prev_week if r["action"] == "expired")
+    prev_consumed = sum(1 for r in prev_week if r["action"] == "consumed") # Wait, "removed" is consumed in this app
+    prev_removed = sum(1 for r in prev_week if r["action"] == "removed") 
+    prev_added = sum(1 for r in prev_week if r["action"] == "added")
 
     return {
-        "expired": expired,
-        "consumed": consumed,
-        "added": added,
-        "week_start": week_ago,
+        "this_week": {
+            "expired": expired,
+            "consumed": consumed,
+            "added": added
+        },
+        "prev_week": {
+            "expired": prev_expired,
+            "consumed": prev_removed,
+            "added": prev_added
+        },
+        "week_start": week_ago
     }
 
 

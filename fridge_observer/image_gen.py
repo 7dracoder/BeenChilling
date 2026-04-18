@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Hugging Face FLUX.1-schnell image generation client.
 Uses huggingface_hub InferenceClient with fal-ai provider.

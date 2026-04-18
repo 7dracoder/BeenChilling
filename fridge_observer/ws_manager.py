@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 """WebSocket connection manager for real-time inventory updates."""
 import json
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import WebSocket
 
@@ -68,7 +70,7 @@ class ConnectionManager:
         """Broadcast a notification message to all clients."""
         await self.broadcast({"type": "notification", "payload": {"level": level, "message": message}})
 
-    async def broadcast_temperature_update(self, fridge: float | None, freezer: float | None) -> None:
+    async def broadcast_temperature_update(self, fridge: Optional[float], freezer: Optional[float]) -> None:
         """Broadcast a temperature_update message to all clients."""
         await self.broadcast({"type": "temperature_update", "payload": {"fridge": fridge, "freezer": freezer}})
 

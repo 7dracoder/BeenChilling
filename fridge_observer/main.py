@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """FastAPI application entry point — Supabase backend."""
 import json
 import logging

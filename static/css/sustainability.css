@@ -22,8 +22,10 @@
 .sus-sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -198,9 +200,12 @@
   justify-content: center;
   text-align: center;
   padding: var(--space-10) var(--space-6);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .sus-welcome-icon {
@@ -252,10 +257,13 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .sus-analysis-header {
@@ -400,9 +408,10 @@
   align-items: center;
   gap: var(--space-5);
   padding: var(--space-5);
-  background: var(--color-surface-alt);
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(8px);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--glass-border);
 }
 
 .sus-score-ring {
@@ -506,10 +515,17 @@
 }
 
 .sus-alt-card {
-  background: var(--color-accent-light);
-  border: 1px solid #c8e6d0;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.05);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.sus-alt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
 .sus-alt-name { font-size: 13.5px; font-weight: 600; color: var(--color-accent); margin-bottom: 4px; }
@@ -620,11 +636,11 @@
 .sus-issues-list { display: flex; flex-direction: column; gap: 6px; }
 .sus-issue-item {
   padding: 8px 12px;
-  background: #fef2f0;
+  background: rgba(239, 68, 68, 0.1);
   border-left: 3px solid var(--color-expired);
   border-radius: var(--radius-md);
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 /* Redesign grid */

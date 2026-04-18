@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Email sending via Gmail SMTP."""
 import logging
 import os

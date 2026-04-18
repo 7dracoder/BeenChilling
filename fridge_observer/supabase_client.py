@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Supabase client — single instance for the whole app."""
 import os
 from supabase import create_client, Client

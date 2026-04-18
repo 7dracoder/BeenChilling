@@ -120,8 +120,10 @@
 
 /* ── Waste Report Card ──────────────────────────────────────── */
 .waste-report-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   box-shadow: var(--shadow-sm);
@@ -185,12 +187,12 @@
 
 /* ── Streak Card ────────────────────────────────────────────── */
 .streak-card {
-  background: linear-gradient(135deg, var(--color-accent-light) 0%, #d4ead9 100%);
-  border: 1px solid rgba(74, 124, 89, 0.2);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.3) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
   text-align: center;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-glow);
 }
 
 .streak-icon {
@@ -218,4 +220,256 @@
 .streak-message {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
+}
+/* ── Organized Notification Components ─────────────────────── */
+
+.report-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.report-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.report-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tag-ok { color: var(--color-ok); }
+.tag-expired { color: var(--color-expired); }
+
+.report-trend {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.delta-positive { background: rgba(52, 211, 153, 0.1); color: var(--color-ok); }
+.delta-negative { background: rgba(248, 113, 113, 0.1); color: var(--color-expired); }
+.delta-neutral { background: var(--color-surface-alt); color: var(--color-text-muted); }
+
+.report-count {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.report-count small {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* ── Compact Activity Log ──────────────────────────────────── */
+
+.log-item-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log-item-compact:last-child {
+  border-bottom: none;
+}
+
+.log-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.log-indicator.added { background: var(--color-ok); box-shadow: 0 0 8px var(--color-ok); }
+.log-indicator.removed { background: var(--color-text-muted); }
+.log-indicator.expired { background: var(--color-expired); box-shadow: 0 0 8px var(--color-expired); }
+.log-indicator.updated { background: var(--color-accent); }
+
+.log-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 0;
+}
+
+.log-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.log-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-verb {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.log-aside {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.empty-state-mini {
+  padding: var(--space-4) 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+/* ── Compact log items (for notification panel) ─────────────── */
+.log-item-compact {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log-item-compact:last-child {
+  border-bottom: none;
+}
+
+.log-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.log-indicator.added    { background: var(--color-ok); }
+.log-indicator.removed  { background: var(--color-text-muted); }
+.log-indicator.updated  { background: var(--color-warning); }
+.log-indicator.expired  { background: var(--color-expired); }
+
+.log-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.log-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.log-subject {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.log-verb {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.log-aside {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+/* ── Compact waste report ────────────────────────────────────── */
+.report-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.report-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.report-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.report-tag.tag-ok      { background: rgba(52, 211, 153, 0.15); color: var(--color-ok); }
+.report-tag.tag-expired { background: rgba(248, 113, 113, 0.15); color: var(--color-expired); }
+
+.report-trend {
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.report-trend.delta-positive { color: var(--color-ok); }
+.report-trend.delta-negative { color: var(--color-expired); }
+.report-trend.delta-neutral  { color: var(--color-text-muted); }
+
+.report-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.report-count small {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* ── Empty state mini ────────────────────────────────────────── */
+.empty-state-mini {
+  padding: var(--space-3) 0;
+  text-align: center;
+}
+
+.empty-state-mini .empty-state-text {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }

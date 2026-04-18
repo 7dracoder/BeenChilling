@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Seed sample recipes into Supabase on first startup."""
 import json
 import logging

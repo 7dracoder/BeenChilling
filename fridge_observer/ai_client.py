@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """AI client for K2-Think (reasoning) and Gemini (vision) APIs."""
 import base64
 import json

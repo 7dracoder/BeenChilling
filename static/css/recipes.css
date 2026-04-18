@@ -12,8 +12,10 @@
 
 /* ── Recipe Card ────────────────────────────────────────────── */
 .recipe-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
@@ -22,8 +24,9 @@
 }
 
 .recipe-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) scale(1.01);
   box-shadow: var(--shadow-md);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Image area */
@@ -63,15 +66,18 @@
 
 .urgency-badge.high {
   background: rgba(217, 79, 61, 0.9);
+  box-shadow: 0 4px 10px rgba(217, 79, 61, 0.3);
 }
 
 .urgency-badge.medium {
   background: rgba(232, 168, 56, 0.9);
   color: #1A1A18;
+  box-shadow: 0 4px 10px rgba(232, 168, 56, 0.3);
 }
 
 .urgency-badge.low {
   background: rgba(61, 153, 112, 0.9);
+  box-shadow: 0 4px 10px rgba(61, 153, 112, 0.3);
 }
 
 /* Content area */
@@ -142,8 +148,8 @@
 
 /* Expiring ingredients */
 .expiring-ingredients {
-  background: rgba(232, 168, 56, 0.08);
-  border: 1px solid rgba(232, 168, 56, 0.25);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: var(--radius-md);
   padding: var(--space-3);
   margin-bottom: var(--space-3);
@@ -180,8 +186,8 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
+  border-top: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.4);
   margin-top: auto;
 }
 
@@ -309,7 +315,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 50%, var(--color-surface-alt) 75%);
+  background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   z-index: 0;

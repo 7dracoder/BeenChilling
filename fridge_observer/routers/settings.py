@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Settings REST API — backed by Supabase."""
 import logging
 from fastapi import APIRouter, Depends

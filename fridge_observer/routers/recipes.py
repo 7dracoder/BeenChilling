@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Recipes REST API — backed by Supabase."""
 import logging
 from datetime import date

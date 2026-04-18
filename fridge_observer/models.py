@@ -1,5 +1,6 @@
-"""Pydantic models and enums for the Fridge Observer API."""
 from __future__ import annotations
+
+"""Pydantic models and enums for the Fridge Observer API."""
 
 from datetime import date, datetime
 from enum import Enum

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Inventory REST API — backed by Supabase Postgres."""
 import logging
 from datetime import date, datetime

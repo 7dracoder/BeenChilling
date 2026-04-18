@@ -6,24 +6,28 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --color-bg:           #FAFAF8;
-  --color-surface:      #FFFFFF;
-  --color-border:       #E8E6E0;
-  --color-text-primary: #1A1A18;
-  --color-text-secondary: #6B6860;
-  --color-text-muted:   #A8A59E;
-  --color-accent:       #4A7C59;
-  --color-accent-hover: #3d6849;
-  --color-accent-light: #EBF3EE;
-  --color-error:        #D94F3D;
-  --color-error-bg:     #FEF2F0;
-  --color-ok:           #3D9970;
-  --color-warning:      #E8A838;
+  --color-bg:           #0A1612;
+  --color-surface:      rgba(14, 30, 22, 0.75);
+  --color-surface-alt:  #132A1E;
+  --color-border:       rgba(255, 255, 255, 0.07);
+  --glass-bg:           rgba(10, 22, 18, 0.72);
+  --glass-border:       rgba(52, 211, 153, 0.08);
+  --color-text-primary:   #F0FDF4;
+  --color-text-secondary: #A7C4B5;
+  --color-text-muted:     #5E8A73;
+  --color-ok:       #34D399;
+  --color-warning:  #FBBF24;
+  --color-error:    #F87171;
+  --color-error-bg: rgba(248, 113, 113, 0.1);
+  --color-accent:       #34D399;
+  --color-accent-light: rgba(52, 211, 153, 0.12);
+  --color-accent-hover: #10B981;
+  --gradient-primary: linear-gradient(135deg, #34D399 0%, #059669 100%);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
-  --shadow-md: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 body.auth-body {
@@ -47,7 +51,7 @@ body.auth-body {
 .auth-brand {
   display: none;
   flex: 1;
-  background: linear-gradient(145deg, #2d5a3d 0%, #4A7C59 50%, #5a9470 100%);
+  background: var(--gradient-primary);
   color: #fff;
   padding: 48px;
   align-items: center;
@@ -111,7 +115,9 @@ body.auth-body {
   align-items: center;
   justify-content: center;
   padding: 32px 24px;
-  background: var(--color-surface);
+  background: var(--color-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 .auth-form-inner {
@@ -215,7 +221,7 @@ body.auth-body {
   font-family: var(--font-sans);
   font-size: 14px;
   color: var(--color-text-primary);
-  background: var(--color-bg);
+  background: var(--color-surface-alt);
   outline: none;
   transition: border-color 150ms ease, background 150ms ease;
 }
@@ -313,7 +319,7 @@ body.auth-body {
   display: none;
   padding: 12px 14px;
   background: var(--color-error-bg);
-  border: 1px solid #f5c6c0;
+  border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: var(--radius-md);
   font-size: 13.5px;
   color: var(--color-error);
@@ -329,7 +335,7 @@ body.auth-body {
 .auth-btn {
   width: 100%;
   padding: 13px;
-  background: var(--color-accent);
+  background: var(--gradient-primary);
   color: #fff;
   border: none;
   border-radius: var(--radius-md);

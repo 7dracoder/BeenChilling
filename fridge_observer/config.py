@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Application configuration — loaded from Supabase settings table."""
 import os
 from dataclasses import dataclass

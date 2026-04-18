@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Sustainability Blueprint endpoint — food product analysis powered by K2-Think."""
 import logging
 import json as _json

@@ -27,82 +27,114 @@
 <!-- ── App Shell ──────────────────────────────────────────── -->
 <div class="app-shell">
 
-  <!-- Sidebar (desktop) -->
-  <nav class="sidebar" role="navigation" aria-label="Main navigation">
-    <div class="sidebar-logo">
-      <span class="sidebar-logo-icon" aria-hidden="true">❄️</span>
-      <div>
-        <div class="sidebar-logo-text">Fridge Observer</div>
-        <div class="sidebar-logo-sub">Smart food tracking</div>
+  <!-- Top Navigation Bar -->
+  <nav class="topbar" role="navigation" aria-label="Main navigation">
+    <div class="topbar-left">
+      <div class="topbar-logo">
+        <span class="topbar-logo-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-svg"><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4-4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>
+        </span>
+        <div class="topbar-logo-text">Fridge Observer</div>
       </div>
-    </div>
-
-    <ul class="sidebar-nav" role="list">
-      <li>
+      
+      <div class="topbar-nav" role="list">
         <div class="nav-item active" data-section="inventory" role="button" tabindex="0" aria-current="page">
-          <span class="nav-icon" aria-hidden="true">🥦</span>
-          <span class="nav-label">Inventory</span>
+          <span class="nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-svg"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg></span>
+          <span class="nav-label">Dashboard</span>
         </div>
-      </li>
-      <li>
-        <div class="nav-item" data-section="recipes" role="button" tabindex="0">
-          <span class="nav-icon" aria-hidden="true">🍳</span>
-          <span class="nav-label">Recipes</span>
-        </div>
-      </li>
-      <li>
-        <div class="nav-item" data-section="notifications" role="button" tabindex="0">
-          <span class="nav-icon" aria-hidden="true">🔔</span>
-          <span class="nav-label">Notifications</span>
-        </div>
-      </li>
-      <li>
-        <div class="nav-item" data-section="settings" role="button" tabindex="0">
-          <span class="nav-icon" aria-hidden="true">⚙️</span>
-          <span class="nav-label">Settings</span>
-        </div>
-      </li>
-      <li>
         <div class="nav-item" data-section="sustainability" role="button" tabindex="0">
-          <span class="nav-icon" aria-hidden="true">🌿</span>
+          <span class="nav-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-svg"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 22 12 12"/></svg></span>
           <span class="nav-label">EcoScan</span>
         </div>
-      </li>
-    </ul>
-
-    <div class="sidebar-footer">
-      <div class="flex items-center gap-2">
-        <div class="connection-dot" title="Connecting..." aria-label="Connection status"></div>
-        <small class="text-muted">Live updates</small>
       </div>
-      <div class="sidebar-user" id="sidebar-user" style="margin-top:12px; display:none;">
-        <div class="sidebar-user-name" id="sidebar-user-name"></div>
-        <button class="sidebar-logout-btn" id="logout-btn" title="Sign out">Sign out</button>
+    </div>
+    
+    <div class="topbar-right">
+      <div class="connection-dot" title="Connecting..." aria-label="Connection status"></div>
+      
+
+      <!-- Notification Dropdown Panel -->
+      <div class="notif-menu-container">
+        <button class="circle-action-btn" id="btn-notifications" aria-label="Notifications">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+        </button>
+        <div class="notification-panel" id="notification-panel">
+          <div class="notif-panel-header">
+            <h3 class="notif-panel-title">Notifications</h3>
+            <span class="notif-panel-sub">Activity, reports & streaks</span>
+          </div>
+          <div class="notif-panel-body">
+            <div id="section-notifications">
+              <div class="notif-section">
+                <div class="notif-card">
+                  <div class="notif-card-label">📊 Weekly Report</div>
+                  <div id="waste-report">
+                    <div class="loading-container"><div class="spinner"></div></div>
+                  </div>
+                </div>
+                <div class="notif-card">
+                  <div class="notif-card-label">🔥 Zero-Waste Streak</div>
+                  <div id="streak-display">
+                    <div class="loading-container"><div class="spinner"></div></div>
+                  </div>
+                </div>
+                <div class="notif-card">
+                  <div class="notif-card-label">📋 Recent Activity</div>
+                  <div id="activity-log" class="activity-log">
+                    <div class="loading-container"><div class="spinner"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Dropdown Container -->
+      <div class="account-menu-container">
+        <button class="circle-action-btn" id="btn-account" aria-label="Account">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+        <div class="account-dropdown" id="account-dropdown">
+          <div class="account-dropdown-header">
+            <div id="dropdown-user-name" class="dropdown-user-name">Not signed in</div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" id="btn-settings" data-section="settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Settings
+          </button>
+          <button class="dropdown-item dropdown-item-danger" id="logout-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   </nav>
 
-  <!-- Main Content -->
+  <!-- Main Content Wrapper -->
   <main class="main-content" id="main-content">
 
-    <!-- Content Header -->
-    <header class="content-header">
-      <h1 class="content-header-title">🥦 Inventory</h1>
-      <div class="header-actions">
-        <div class="connection-dot" title="Connecting..." aria-label="Connection status"></div>
-      </div>
-    </header>
 
-    <!-- Connection Banner -->
+<!-- Connection Banner -->
     <div class="connection-banner" role="alert" aria-live="polite">
       <span class="connection-banner-msg">⚠️ Disconnected from Fridge Observer. Updates paused.</span>
       <button class="connection-banner-close" aria-label="Dismiss">×</button>
     </div>
 
-    <!-- ── Inventory Section ─────────────────────────────── -->
-    <section id="section-inventory" class="content-section active" aria-label="Inventory">
+    <!-- ── Dashboard (Inventory + Recipes) ─────────────────────── -->
+    <section id="section-inventory" class="content-section active" aria-label="Dashboard">
 
-      <!-- Quick Add Form -->
+      <div class="dashboard-container">
+        <div class="dashboard-left">
+
+      <!-- Quick Add Card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 class="dash-card-title">Quick Add Item</h3>
+        </div>
+        <div class="dash-card-body">
       <div class="quick-add-section">
         <div class="quick-add-title">
           <span aria-hidden="true">➕</span> Quick Add Item
@@ -157,7 +189,15 @@
         </form>
       </div>
 
-      <!-- Inventory Stats -->
+        </div>
+      </div>
+
+      <!-- Inventory Overview Card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 class="dash-card-title">Inventory Overview</h3>
+        </div>
+        <div class="dash-card-body">
       <div id="inventory-stats" class="inventory-stats"></div>
 
       <!-- Filters -->
@@ -190,16 +230,19 @@
           <div class="spinner spinner-lg"></div>
         </div>
       </div>
-    </section>
-
-    <!-- ── Recipes Section ───────────────────────────────── -->
-    <section id="section-recipes" class="content-section" aria-label="Recipes">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Recipe Suggestions</h2>
-          <p class="section-subtitle">Ranked by how urgently your ingredients need to be used</p>
         </div>
       </div>
+    
+        </div>
+        <div class="dashboard-right">
+
+      <!-- Recipe Suggestions Card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 class="dash-card-title">Recipe Suggestions</h3>
+          <span class="dash-card-sub">Ranked by urgency of expiring ingredients</span>
+        </div>
+        <div class="dash-card-body">
 
       <!-- Recipe Filters -->
       <div class="recipe-filters">
@@ -234,41 +277,9 @@
           <div class="spinner spinner-lg"></div>
         </div>
       </div>
-    </section>
-
-    <!-- ── Notifications Section ─────────────────────────── -->
-    <section id="section-notifications" class="content-section" aria-label="Notifications and History">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Notifications & History</h2>
-          <p class="section-subtitle">Activity log, waste report, and your zero-waste streak</p>
         </div>
       </div>
-
-      <div class="notifications-grid">
-        <!-- Waste Report -->
-        <div class="waste-report-card">
-          <div class="waste-report-title">
-            <span aria-hidden="true">📊</span> This Week's Report
-          </div>
-          <div id="waste-report">
-            <div class="loading-container"><div class="spinner"></div></div>
-          </div>
-        </div>
-
-        <!-- Streak -->
-        <div id="streak-display">
-          <div class="loading-container"><div class="spinner"></div></div>
-        </div>
-
-        <!-- Activity Log -->
-        <div class="card activity-log-section">
-          <div class="card-header">
-            <h3 class="card-title">📋 Activity Log</h3>
-          </div>
-          <div id="activity-log" class="activity-log">
-            <div class="loading-container"><div class="spinner"></div></div>
-          </div>
+    
         </div>
       </div>
     </section>
@@ -485,29 +496,7 @@
   </main>
 </div>
 
-<!-- ── Bottom Tab Bar (mobile) ──────────────────────────── -->
-<nav class="tab-bar" role="navigation" aria-label="Mobile navigation">
-  <div class="tab-item active" data-section="inventory" role="button" tabindex="0" aria-label="Inventory">
-    <span class="tab-icon" aria-hidden="true">🥦</span>
-    <span class="tab-label">Inventory</span>
-  </div>
-  <div class="tab-item" data-section="recipes" role="button" tabindex="0" aria-label="Recipes">
-    <span class="tab-icon" aria-hidden="true">🍳</span>
-    <span class="tab-label">Recipes</span>
-  </div>
-  <div class="tab-item" data-section="notifications" role="button" tabindex="0" aria-label="Notifications">
-    <span class="tab-icon" aria-hidden="true">🔔</span>
-    <span class="tab-label">Alerts</span>
-  </div>
-  <div class="tab-item" data-section="settings" role="button" tabindex="0" aria-label="Settings">
-    <span class="tab-icon" aria-hidden="true">⚙️</span>
-    <span class="tab-label">Settings</span>
-  </div>
-  <div class="tab-item" data-section="sustainability" role="button" tabindex="0" aria-label="EcoScan">
-    <span class="tab-icon" aria-hidden="true">🌿</span>
-    <span class="tab-label">EcoScan</span>
-  </div>
-</nav>
+
 
 <!-- ── Edit Item Modal ───────────────────────────────────── -->
 <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">

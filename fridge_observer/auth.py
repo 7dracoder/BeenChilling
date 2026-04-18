@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Authentication utilities — password hashing and JWT tokens."""
 import os
 from datetime import datetime, timedelta, timezone

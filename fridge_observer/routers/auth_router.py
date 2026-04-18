@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Auth endpoints — Supabase Auth + custom OTP via Gmail."""
 import logging
 import os

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """AI endpoints — K2-Think reasoning and Gemini vision."""
 import logging
 from typing import Optional

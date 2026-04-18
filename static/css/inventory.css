@@ -12,8 +12,10 @@
 
 /* ── Food Card ──────────────────────────────────────────────── */
 .food-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   cursor: pointer;
@@ -24,21 +26,31 @@
 }
 
 .food-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-3px) scale(1.02);
   box-shadow: var(--shadow-md);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .food-card.status-ok {
   border-left-color: var(--color-ok);
 }
+.food-card.status-ok:hover {
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.15);
+}
 
 .food-card.status-warning {
   border-left-color: var(--color-warning);
+}
+.food-card.status-warning:hover {
+  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.15);
 }
 
 .food-card.status-expired {
   border-left-color: var(--color-expired);
   opacity: 0.85;
+}
+.food-card.status-expired:hover {
+  box-shadow: 0 8px 16px rgba(239, 68, 68, 0.15);
 }
 
 .category-icon {
@@ -93,8 +105,10 @@
 
 /* ── Quick Add Form ─────────────────────────────────────────── */
 .quick-add-section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   margin-bottom: var(--space-6);
@@ -176,8 +190,10 @@
 }
 
 .stat-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   text-align: center;
@@ -219,7 +235,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 50%, var(--color-surface-alt) 75%);
+  background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

@@ -43,7 +43,7 @@ window.showToast = showToast;
 
 // ── Navigation ───────────────────────────────────────────────
 
-const SECTIONS = ['inventory', 'recipes', 'notifications', 'settings', 'sustainability'];
+const SECTIONS = ['inventory', 'settings', 'sustainability'];
 let _activeSection = 'inventory';
 let _sectionInitialized = {};
 
@@ -59,33 +59,27 @@ function navigateTo(section) {
     if (el) el.classList.toggle('active', s === section);
   });
 
-  // Update nav items (sidebar)
+  // Update topbar nav items
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.section === section);
     item.setAttribute('aria-current', item.dataset.section === section ? 'page' : 'false');
   });
 
-  // Update tab items (mobile)
-  document.querySelectorAll('.tab-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.section === section);
-  });
-
-  // Update header title
-  const titles = {
-    inventory: '🥦 Inventory',
-    recipes: '🍳 Recipes',
-    notifications: '🔔 Notifications',
-    settings: '⚙️ Settings',
-    sustainability: '🌿 EcoScan',
-  };
-  const headerTitle = document.querySelector('.content-header-title');
-  if (headerTitle) headerTitle.textContent = titles[section] || section;
+  // Update notification button active state
+  const notifBtn = document.getElementById('btn-notifications');
+  if (notifBtn) {
+    notifBtn.classList.toggle('active', section === 'notifications');
+  }
 
   // Initialize section on first visit
   if (!_sectionInitialized[section]) {
     _sectionInitialized[section] = true;
     initSection(section);
   }
+
+  // Close notification panel and account dropdown
+  closeNotificationPanel();
+  closeAccountDropdown();
 
   // Update URL hash
   history.replaceState(null, '', `#${section}`);
@@ -95,8 +89,6 @@ function initSection(section) {
   switch (section) {
     case 'inventory':
       if (window.inventoryModule) window.inventoryModule.refreshInventory();
-      break;
-    case 'recipes':
       if (window.recipesModule) window.recipesModule.refreshRecipes();
       break;
     case 'notifications':
@@ -109,6 +101,93 @@ function initSection(section) {
       if (window.sustainabilityModule) window.sustainabilityModule.initSustainability();
       break;
   }
+}
+
+// ── Account Dropdown ─────────────────────────────────────────
+
+function toggleAccountDropdown() {
+  const dropdown = document.getElementById('account-dropdown');
+  if (dropdown) {
+    dropdown.classList.toggle('show');
+  }
+}
+
+function closeAccountDropdown() {
+  const dropdown = document.getElementById('account-dropdown');
+  if (dropdown) {
+    dropdown.classList.remove('show');
+  }
+}
+
+function initAccountDropdown() {
+  const accountBtn = document.getElementById('btn-account');
+  if (accountBtn) {
+    accountBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleAccountDropdown();
+    });
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const container = document.querySelector('.account-menu-container');
+    if (container && !container.contains(e.target)) {
+      closeAccountDropdown();
+    }
+  });
+
+  // Settings button inside dropdown
+  const settingsBtn = document.getElementById('btn-settings');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      navigateTo('settings');
+    });
+  }
+}
+
+// ── Notification Panel ───────────────────────────────────────
+
+let _notificationsLoaded = false;
+
+function toggleNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+  if (panel) {
+    const isShowing = panel.classList.toggle('show');
+    // Load notifications on first open
+    if (isShowing && !_notificationsLoaded) {
+      _notificationsLoaded = true;
+      if (window.notificationsModule) {
+        window.notificationsModule.initNotifications();
+      }
+    }
+    // Close account dropdown if open
+    closeAccountDropdown();
+  }
+}
+
+function closeNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+  if (panel) {
+    panel.classList.remove('show');
+  }
+}
+
+function initNotificationButton() {
+  const btn = document.getElementById('btn-notifications');
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleNotificationPanel();
+    });
+  }
+
+  // Close panel when clicking outside
+  document.addEventListener('click', (e) => {
+    const container = document.querySelector('.notif-menu-container');
+    if (container && !container.contains(e.target)) {
+      closeNotificationPanel();
+    }
+  });
 }
 
 // ── WebSocket Wiring ─────────────────────────────────────────
@@ -162,12 +241,10 @@ async function initAuth() {
       return false;
     }
     const user = await res.json();
-    // Show user name in sidebar
-    const userEl = document.getElementById('sidebar-user');
-    const nameEl = document.getElementById('sidebar-user-name');
-    if (userEl && nameEl) {
-      nameEl.textContent = user.display_name || user.email;
-      userEl.style.display = 'block';
+    // Show user name in account dropdown
+    const dropdownName = document.getElementById('dropdown-user-name');
+    if (dropdownName) {
+      dropdownName.textContent = user.display_name || user.email;
     }
     return true;
   } catch {
@@ -186,8 +263,8 @@ function initLogout() {
 }
 
 function initApp() {
-  // Set up navigation
-  document.querySelectorAll('.nav-item, .tab-item').forEach(item => {
+  // Set up topbar nav items
+  document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
       const section = item.dataset.section;
       if (section) navigateTo(section);
@@ -201,6 +278,12 @@ function initApp() {
       }
     });
   });
+
+  // Initialize account dropdown
+  initAccountDropdown();
+
+  // Initialize notification button
+  initNotificationButton();
 
   // Initialize connection banner
   initConnectionBanner();

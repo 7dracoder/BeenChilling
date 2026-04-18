@@ -54,27 +54,22 @@ function renderActivityLog(entries) {
 
   if (!entries || entries.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📋</div>
-        <div class="empty-state-title">No activity yet</div>
-        <div class="empty-state-text">Your fridge activity will appear here as items are added and removed.</div>
+      <div class="empty-state-mini">
+        <div class="empty-state-text">No activity discovered</div>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = entries.map(entry => `
-    <div class="log-entry">
-      <div class="log-icon ${entry.action}" aria-hidden="true">
-        ${ACTION_ICONS[entry.action] || '•'}
-      </div>
-      <div class="log-content">
-        <div class="log-item-name">${escapeHtml(entry.item_name)}</div>
-        <div class="log-meta">
-          <span class="action-badge ${entry.action}">${entry.action}</span>
-          <span class="log-source">${entry.source}</span>
-          <span class="log-timestamp mono">${formatDateTime(entry.occurred_at)}</span>
+  container.innerHTML = entries.slice(0, 15).map(entry => `
+    <div class="log-item-compact">
+      <div class="log-indicator ${entry.action}"></div>
+      <div class="log-info">
+        <div class="log-main">
+          <span class="log-subject">${escapeHtml(entry.item_name)}</span>
+          <span class="log-verb">${entry.action}</span>
         </div>
+        <div class="log-aside">${formatDateTime(entry.occurred_at)}</div>
       </div>
     </div>
   `).join('');
@@ -85,24 +80,41 @@ function renderWasteReport(report) {
   const container = document.getElementById('waste-report');
   if (!container) return;
 
-  const { expired_count, consumed_count, prev_week_expired_count, prev_week_consumed_count } = report;
+  const thisWeek = report.this_week || {};
+  const prevWeek = report.prev_week || {};
 
-  const expiredChange = expired_count - (prev_week_expired_count || 0);
-  const consumedChange = consumed_count - (prev_week_consumed_count || 0);
+  const expired = thisWeek.expired || 0;
+  const consumed = thisWeek.consumed || 0;
+  const prevExpired = prevWeek.expired || 0;
+  const prevConsumed = prevWeek.consumed || 0;
+
+  const expiredDelta = expired - prevExpired;
+  const consumedDelta = consumed - prevConsumed;
+
+  const getDeltaClass = (val, inverted = false) => {
+    if (val === 0) return 'delta-neutral';
+    const isGood = inverted ? val <= 0 : val >= 0;
+    return isGood ? 'delta-positive' : 'delta-negative';
+  };
+
+  const formatDelta = (val) => (val > 0 ? `+${val}` : `${val}`);
 
   container.innerHTML = `
-    <div class="waste-comparison">
-      <div class="waste-stat expired-stat">
-        <div class="waste-stat-number">${expired_count}</div>
-        <div class="waste-stat-label">Expired this week</div>
+    <div class="report-summary">
+      <div class="report-item">
+        <div class="report-meta">
+          <span class="report-tag tag-ok">🌿 Consumed</span>
+          <span class="report-trend ${getDeltaClass(consumedDelta)}">${formatDelta(consumedDelta)} vs last week</span>
+        </div>
+        <div class="report-count">${consumed} <small>items</small></div>
       </div>
-      <div class="waste-stat consumed-stat">
-        <div class="waste-stat-number">${consumed_count}</div>
-        <div class="waste-stat-label">Consumed this week</div>
+      <div class="report-item">
+        <div class="report-meta">
+          <span class="report-tag tag-expired">⚠️ Expired</span>
+          <span class="report-trend ${getDeltaClass(expiredDelta, true)}">${formatDelta(expiredDelta)} vs last week</span>
+        </div>
+        <div class="report-count">${expired} <small>items</small></div>
       </div>
-    </div>
-    <div class="waste-prev-week">
-      vs last week: ${prev_week_expired_count} expired, ${prev_week_consumed_count} consumed
     </div>
   `;
 }
