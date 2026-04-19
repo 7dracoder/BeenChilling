@@ -221,6 +221,7 @@ async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> O
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
     
     if not gemini_key:
+        logger.info("GEMINI_API_KEY not set - skipping Gemini Imagen")
         return None
     
     try:
@@ -257,11 +258,13 @@ async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> O
                     image_bytes = base64.b64decode(image_b64)
                     logger.info("✓ Gemini Imagen generated: %d bytes for '%s'", len(image_bytes), recipe_name)
                     return image_bytes
+                else:
+                    logger.warning("Gemini Imagen: No predictions in response")
             else:
-                logger.warning("Gemini Imagen error: %d - %s", response.status_code, response.text[:200])
+                logger.warning("Gemini Imagen error: %d - %s", response.status_code, response.text[:500])
     
     except Exception as exc:
-        logger.warning("Gemini Imagen failed for '%s': %s", recipe_name, exc)
+        logger.error("Gemini Imagen failed for '%s': %s", recipe_name, exc, exc_info=True)
     
     return None
 
@@ -432,13 +435,15 @@ async def generate_blueprint_image(product_name: str, redesign_spec: str = "") -
                         image_bytes = base64.b64decode(image_b64)
                         logger.info("✓ Gemini Imagen blueprint generated: %d bytes", len(image_bytes))
                         return image_bytes
+                    else:
+                        logger.warning("Gemini Imagen: No predictions in response")
                 else:
-                    logger.warning("Gemini Imagen error: %d - %s", response.status_code, response.text[:200])
+                    logger.warning("Gemini Imagen error: %d - %s", response.status_code, response.text[:500])
         
         except Exception as exc:
-            logger.warning("Gemini Imagen failed for '%s': %s", product_name, exc)
+            logger.error("Gemini Imagen failed for '%s': %s", product_name, exc, exc_info=True)
     else:
-        logger.info("Gemini API key not configured - skipping")
+        logger.info("GEMINI_API_KEY not set - skipping Gemini Imagen")
     
     # Try FAL.ai first (FREE tier available!)
     if FAL_KEY and "your-fal" not in FAL_KEY.lower():
