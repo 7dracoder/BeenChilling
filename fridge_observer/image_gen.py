@@ -217,8 +217,11 @@ async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional
 
 
 async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Generate food image using Gemini Imagen 3.0 API."""
+    """Generate food image using Gemini Imagen via Vertex AI API."""
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+    region = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
+    
     if not gemini_key:
         return None
     
@@ -227,8 +230,20 @@ async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> O
         cuisine_hint = f"{cuisine} " if cuisine else ""
         prompt = f"Professional food photography of {cuisine_hint}{recipe_name}, beautifully plated, appetizing, high quality"
         
-        # Use Imagen 3.0 endpoint
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}"
+        # If project_id is set, use Vertex AI endpoint
+        if project_id:
+            url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/imagen-3.0-generate-001:predict"
+        else:
+            # Fallback to generativelanguage API with API key
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}"
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        # Add authorization header only if using Vertex AI endpoint
+        if project_id:
+            headers["Authorization"] = f"Bearer {gemini_key}"
         
         payload = {
             "instances": [
@@ -243,17 +258,17 @@ async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> O
         }
         
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, json=payload, headers=headers)
             
             if response.status_code == 200:
                 data = response.json()
                 if "predictions" in data and len(data["predictions"]) > 0:
                     image_b64 = data["predictions"][0]["bytesBase64Encoded"]
                     image_bytes = base64.b64decode(image_b64)
-                    logger.info("✓ Gemini Imagen 3.0 generated: %d bytes for '%s'", len(image_bytes), recipe_name)
+                    logger.info("✓ Gemini Imagen generated: %d bytes for '%s'", len(image_bytes), recipe_name)
                     return image_bytes
             else:
-                logger.warning("Gemini Imagen error: %d", response.status_code)
+                logger.warning("Gemini Imagen error: %d - %s", response.status_code, response.text[:200])
     
     except Exception as exc:
         logger.warning("Gemini Imagen failed for '%s': %s", recipe_name, exc)
@@ -391,14 +406,29 @@ async def generate_blueprint_image(product_name: str, redesign_spec: str = "") -
     
     logger.info(f"Generating blueprint for '{product_name}' with detailed prompt")
     
-    # Try Gemini Imagen 4.0 first (you have API key configured)
+    # Try Gemini Imagen via Vertex AI first (you have API key configured)
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+    region = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
+    
     if gemini_key:
         try:
-            logger.info("Attempting Gemini Imagen 4.0 blueprint generation...")
+            logger.info("Attempting Gemini Imagen blueprint generation...")
             
-            # Use the correct Imagen 3 endpoint (Imagen 4.0 might not be available yet)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}"
+            # If project_id is set, use Vertex AI endpoint
+            if project_id:
+                url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/imagen-3.0-generate-001:predict"
+            else:
+                # Fallback to generativelanguage API with API key
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}"
+            
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            # Add authorization header only if using Vertex AI endpoint
+            if project_id:
+                headers["Authorization"] = f"Bearer {gemini_key}"
             
             payload = {
                 "instances": [
@@ -413,14 +443,14 @@ async def generate_blueprint_image(product_name: str, redesign_spec: str = "") -
             }
             
             async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(url, json=payload)
+                response = await client.post(url, json=payload, headers=headers)
                 
                 if response.status_code == 200:
                     data = response.json()
                     if "predictions" in data and len(data["predictions"]) > 0:
                         image_b64 = data["predictions"][0]["bytesBase64Encoded"]
                         image_bytes = base64.b64decode(image_b64)
-                        logger.info("✓ Gemini Imagen 3.0 blueprint generated: %d bytes", len(image_bytes))
+                        logger.info("✓ Gemini Imagen blueprint generated: %d bytes", len(image_bytes))
                         return image_bytes
                 else:
                     logger.warning("Gemini Imagen error: %d - %s", response.status_code, response.text[:200])
