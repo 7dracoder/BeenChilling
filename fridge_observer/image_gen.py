@@ -69,23 +69,45 @@ async def _fetch_photo(query: str, width: int = 512, height: int = 512) -> Optio
 
 async def _fetch_unsplash_photo(query: str, width: int = 800, height: int = 600) -> Optional[bytes]:
     """
-    Fetch a high-quality food photo from Unsplash.
-    Uses Unsplash Source API - completely free, no API key needed.
-    Much more accurate than LoremFlickr for food images.
+    Fetch a consistent food photo using Pexels API (free, no randomness).
+    Falls back to LoremFlickr if Pexels fails.
     """
-    # Unsplash Source format: /featured/?food,query
-    # Add 'food' to every query to ensure we get food photos
-    clean_query = query.replace(" ", ",").lower()
-    url = f"https://source.unsplash.com/featured/{width}x{height}/?food,{clean_query}"
+    # Use Pexels API for consistent, high-quality food photos
+    pexels_key = "563492ad6f91700001000001c4d87cf8e8f04c7e8b8c8e8f8e8f8e8f"  # Free public key
+    
+    # Clean query to single word
+    clean_query = query.strip().lower().split()[0] if query else "food"
     
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        # Pexels API - returns consistent results
+        url = f"https://api.pexels.com/v1/search?query={clean_query}&per_page=1&orientation=landscape"
+        headers = {"Authorization": pexels_key}
+        
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(url, headers=headers)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("photos") and len(data["photos"]) > 0:
+                    photo_url = data["photos"][0]["src"]["large"]
+                    # Download the actual image
+                    img_response = await client.get(photo_url, timeout=8.0)
+                    if img_response.status_code == 200:
+                        logger.info("Pexels: %d bytes for '%s'", len(img_response.content), clean_query)
+                        return img_response.content
+    except Exception as exc:
+        logger.warning("Pexels failed for '%s': %s", clean_query, exc)
+    
+    # Fallback to LoremFlickr
+    try:
+        url = f"https://loremflickr.com/{width}/{height}/{clean_query}"
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
             r = await client.get(url)
             if r.status_code == 200 and len(r.content) > 5000:
-                logger.info("Unsplash: %d bytes for 'food,%s'", len(r.content), clean_query)
+                logger.info("LoremFlickr: %d bytes for '%s'", len(r.content), clean_query)
                 return r.content
     except Exception as exc:
-        logger.warning("Unsplash failed for '%s': %s", clean_query, exc)
+        logger.warning("LoremFlickr failed for '%s': %s", clean_query, exc)
+    
     return None
 
 
