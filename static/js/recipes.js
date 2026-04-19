@@ -97,8 +97,8 @@ function renderRecipeCards(scoredRecipes) {
   if (scoredRecipes.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-title">No recipes found</div>
-        <div class="empty-state-text">Add more items to your fridge to unlock recipe suggestions.</div>
+        <div class="empty-state-title">No recipes available</div>
+        <div class="empty-state-text">Try adjusting your filters or add items to your fridge.</div>
       </div>
     `;
     return;

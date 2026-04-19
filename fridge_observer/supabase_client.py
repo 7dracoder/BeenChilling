@@ -5,8 +5,8 @@ import os
 from supabase import create_client, Client
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-SUPABASE_ANON_KEY = os.environ.get("SUPABASE_KEY", "")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
 # Service-role client for backend operations (bypasses RLS)
 _service_client: Client | None = None
