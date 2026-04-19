@@ -123,8 +123,13 @@ async def _hf_generate(prompt: str, width: int, height: int, steps: int = 4) -> 
 # ── Public API ────────────────────────────────────────────────
 
 async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Get a food photo for a recipe — uses Unsplash for accurate food images."""
-    # Map recipe names to better search terms
+    """Generate AI food photo for a recipe using Gemini Imagen."""
+    # Try Gemini Imagen first for AI-generated food images
+    gemini_image = await _generate_recipe_with_gemini(recipe_name, cuisine)
+    if gemini_image:
+        return gemini_image
+    
+    # Fallback to Unsplash for stock photos
     name_lower = recipe_name.lower()
     
     # Build specific query for Unsplash
@@ -158,6 +163,67 @@ async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional
         query = "sandwich"
     elif "rice" in name_lower:
         query = "rice dish"
+    elif "noodle" in name_lower:
+        query = "noodles"
+    elif "sushi" in name_lower:
+        query = "sushi japanese"
+    elif "dessert" in name_lower or "cake" in name_lower:
+        query = "dessert cake"
+    else:
+        # Generic food photo with cuisine hint
+        query = f"{recipe_name.lower()}"
+        if cuisine:
+            query = f"{cuisine.lower()} {query}"
+    
+    # Try Unsplash first (more accurate)
+    result = await _fetch_unsplash_photo(query, 800, 600)
+    if result:
+        return result
+    
+    # Fallback to LoremFlickr if Unsplash fails
+    return await _fetch_photo(query, 512, 512)
+
+
+async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
+    """Generate a food image using Gemini Imagen API."""
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    if not gemini_key:
+        return None
+    
+    try:
+        # Build a detailed food photography prompt
+        cuisine_hint = f"{cuisine} " if cuisine else ""
+        prompt = f"Professional food photography of {cuisine_hint}{recipe_name}, beautifully plated on a white dish, natural lighting, appetizing, high quality, restaurant style, top view"
+        
+        # Use Gemini Imagen 3 for image generation
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generate?key={gemini_key}"
+        
+        payload = {
+            "prompt": prompt,
+            "number_of_images": 1,
+            "aspect_ratio": "4:3",
+            "safety_filter_level": "block_only_high",
+            "person_generation": "dont_allow"
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Gemini returns base64 encoded images
+                if "generatedImages" in data and len(data["generatedImages"]) > 0:
+                    image_b64 = data["generatedImages"][0]["image"]
+                    image_bytes = base64.b64decode(image_b64)
+                    logger.info("✓ Gemini generated recipe image: %d bytes for '%s'", len(image_bytes), recipe_name)
+                    return image_bytes
+            else:
+                logger.warning("Gemini Imagen API error: %d", response.status_code)
+    
+    except Exception as exc:
+        logger.warning("Gemini Imagen failed for '%s': %s", recipe_name, exc)
+    
+    return None
     elif "noodle" in name_lower:
         query = "noodles"
     elif "sushi" in name_lower:

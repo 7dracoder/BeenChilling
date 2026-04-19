@@ -31,11 +31,20 @@ async function _processImageQueue() {
       const blob = await res.blob();
       imgEl.src = URL.createObjectURL(blob);
       imgEl.classList.add('loaded');
+      // Hide the loading placeholder
+      const placeholder = imgEl.parentElement?.querySelector('.recipe-img-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
     } else {
       imgEl.dispatchEvent(new Event('error'));
+      // Hide the loading placeholder on error too
+      const placeholder = imgEl.parentElement?.querySelector('.recipe-img-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
     }
   } catch {
     imgEl.dispatchEvent(new Event('error'));
+    // Hide the loading placeholder on error
+    const placeholder = imgEl.parentElement?.querySelector('.recipe-img-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
   }
 
   // Small delay between requests to avoid rate limiting
