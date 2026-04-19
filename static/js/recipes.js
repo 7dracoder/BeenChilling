@@ -3,56 +3,6 @@
  * recipes.js
  */
 
-// ── Image load queue ──────────────────────────────────────────
-// Loads recipe images one at a time to avoid HF rate limits
-const _imageQueue = [];
-let _imageQueueRunning = false;
-
-function queueImageLoad(imgEl, url) {
-  _imageQueue.push({ imgEl, url });
-  if (!_imageQueueRunning) _processImageQueue();
-}
-
-async function _processImageQueue() {
-  if (_imageQueue.length === 0) { _imageQueueRunning = false; return; }
-  _imageQueueRunning = true;
-
-  const { imgEl, url } = _imageQueue.shift();
-
-  // Skip if element no longer in DOM
-  if (!document.contains(imgEl)) {
-    _processImageQueue();
-    return;
-  }
-
-  // Get placeholder before loading
-  const placeholder = imgEl.parentElement?.querySelector('.recipe-img-placeholder');
-
-  try {
-    const res = await fetch(url, { credentials: 'include' });
-    if (res.ok) {
-      const blob = await res.blob();
-      imgEl.src = URL.createObjectURL(blob);
-      imgEl.classList.add('loaded');
-    } else {
-      console.warn('Recipe image failed to load:', url, res.status);
-      imgEl.dispatchEvent(new Event('error'));
-    }
-  } catch (err) {
-    console.error('Recipe image error:', url, err);
-    imgEl.dispatchEvent(new Event('error'));
-  }
-  
-  // ALWAYS hide the loading placeholder after attempt
-  if (placeholder) {
-    placeholder.style.display = 'none';
-  }
-
-  // Small delay between requests to avoid rate limiting
-  await new Promise(r => setTimeout(r, 500));
-  _processImageQueue();
-}
-
 // ── Filters state ─────────────────────────────────────────────
 let _recipeFilters = {
   dietary: null,
@@ -97,8 +47,8 @@ function renderRecipeCards(scoredRecipes) {
   if (scoredRecipes.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-title">No recipes found</div>
-        <div class="empty-state-text">Add more items to your fridge to unlock recipe suggestions.</div>
+        <div class="empty-state-title">No recipes available</div>
+        <div class="empty-state-text">Try adjusting your filters or add items to your fridge.</div>
       </div>
     `;
     return;
@@ -106,11 +56,26 @@ function renderRecipeCards(scoredRecipes) {
 
   grid.innerHTML = scoredRecipes.map(sr => renderRecipeCard(sr)).join('');
 
-  // Queue image loads sequentially
+  // Load images directly in parallel (no queue)
   grid.querySelectorAll('.recipe-flux-img[data-src]').forEach(img => {
     const url = img.dataset.src;
     img.removeAttribute('data-src');
-    queueImageLoad(img, url);
+    
+    const placeholder = img.parentElement?.querySelector('.recipe-img-placeholder');
+    
+    // Load image directly
+    fetch(url, { credentials: 'include' })
+      .then(res => res.ok ? res.blob() : null)
+      .then(blob => {
+        if (blob && document.contains(img)) {
+          img.src = URL.createObjectURL(blob);
+          img.classList.add('loaded');
+        }
+      })
+      .catch(err => console.warn('Image load failed:', err))
+      .finally(() => {
+        if (placeholder) placeholder.style.display = 'none';
+      });
   });
 
   // Event listeners

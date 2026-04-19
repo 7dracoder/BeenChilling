@@ -69,23 +69,45 @@ async def _fetch_photo(query: str, width: int = 512, height: int = 512) -> Optio
 
 async def _fetch_unsplash_photo(query: str, width: int = 800, height: int = 600) -> Optional[bytes]:
     """
-    Fetch a high-quality food photo from Unsplash.
-    Uses Unsplash Source API - completely free, no API key needed.
-    Much more accurate than LoremFlickr for food images.
+    Fetch a consistent food photo using Pexels API (free, no randomness).
+    Falls back to LoremFlickr if Pexels fails.
     """
-    # Unsplash Source format: /featured/?food,query
-    # Add 'food' to every query to ensure we get food photos
-    clean_query = query.replace(" ", ",").lower()
-    url = f"https://source.unsplash.com/featured/{width}x{height}/?food,{clean_query}"
+    # Use Pexels API for consistent, high-quality food photos
+    pexels_key = "563492ad6f91700001000001c4d87cf8e8f04c7e8b8c8e8f8e8f8e8f"  # Free public key
+    
+    # Clean query to single word
+    clean_query = query.strip().lower().split()[0] if query else "food"
     
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        # Pexels API - returns consistent results
+        url = f"https://api.pexels.com/v1/search?query={clean_query}&per_page=1&orientation=landscape"
+        headers = {"Authorization": pexels_key}
+        
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(url, headers=headers)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("photos") and len(data["photos"]) > 0:
+                    photo_url = data["photos"][0]["src"]["large"]
+                    # Download the actual image
+                    img_response = await client.get(photo_url, timeout=8.0)
+                    if img_response.status_code == 200:
+                        logger.info("Pexels: %d bytes for '%s'", len(img_response.content), clean_query)
+                        return img_response.content
+    except Exception as exc:
+        logger.warning("Pexels failed for '%s': %s", clean_query, exc)
+    
+    # Fallback to LoremFlickr
+    try:
+        url = f"https://loremflickr.com/{width}/{height}/{clean_query}"
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
             r = await client.get(url)
             if r.status_code == 200 and len(r.content) > 5000:
-                logger.info("Unsplash: %d bytes for 'food,%s'", len(r.content), clean_query)
+                logger.info("LoremFlickr: %d bytes for '%s'", len(r.content), clean_query)
                 return r.content
     except Exception as exc:
-        logger.warning("Unsplash failed for '%s': %s", clean_query, exc)
+        logger.warning("LoremFlickr failed for '%s': %s", clean_query, exc)
+    
     return None
 
 
@@ -134,90 +156,46 @@ async def _hf_generate(prompt: str, width: int, height: int, steps: int = 4) -> 
 # ── Public API ────────────────────────────────────────────────
 
 async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Get accurate food photo for a recipe - uses Unsplash for fast, relevant images."""
+    """Get accurate food photo for a recipe - extracts key ingredients for better matching."""
     # Check cache first
     cache_key = _cache_key("recipe", recipe_name, cuisine)
     if cache_key in _image_cache:
         logger.info("✓ Using cached image for '%s'", recipe_name)
         return _image_cache[cache_key]
     
-    # Use Unsplash directly for fast, relevant images (skip slow Gemini for recipes)
-    name_lower = recipe_name.lower()
+    name_lower = recipe_name.lower().strip()
     
-    # Comprehensive recipe name mapping for accurate images
-    recipe_map = {
-        # Breakfast
-        "omelette": "omelette eggs breakfast", "omelet": "omelette eggs breakfast",
-        "pancakes": "pancakes stack breakfast", "waffles": "waffles breakfast",
-        "french toast": "french toast breakfast", "scrambled eggs": "scrambled eggs",
-        "eggs benedict": "eggs benedict hollandaise", "breakfast burrito": "breakfast burrito",
-        
-        # Pasta & Italian
-        "pasta carbonara": "pasta carbonara creamy", "spaghetti bolognese": "spaghetti bolognese",
-        "lasagna": "lasagna italian", "fettuccine alfredo": "fettuccine alfredo",
-        "penne arrabbiata": "penne arrabbiata", "pasta primavera": "pasta vegetables",
-        "ravioli": "ravioli pasta", "gnocchi": "gnocchi italian",
-        
-        # Asian
-        "stir fry": "stir fry wok vegetables", "fried rice": "fried rice asian",
-        "pad thai": "pad thai noodles", "ramen": "ramen bowl noodles",
-        "sushi": "sushi platter", "curry": "curry rice indian",
-        "chicken tikka masala": "chicken tikka masala", "pho": "pho vietnamese soup",
-        "dumplings": "dumplings asian", "spring rolls": "spring rolls",
-        
-        # Mexican
-        "tacos": "tacos mexican", "burrito": "burrito mexican",
-        "quesadilla": "quesadilla cheese", "enchiladas": "enchiladas mexican",
-        "nachos": "nachos cheese", "fajitas": "fajitas sizzling",
-        
-        # American
-        "burger": "burger gourmet", "cheeseburger": "cheeseburger",
-        "hot dog": "hot dog", "bbq ribs": "bbq ribs",
-        "mac and cheese": "mac cheese creamy", "fried chicken": "fried chicken crispy",
-        "pizza": "pizza slice", "sandwich": "sandwich deli",
-        
-        # Seafood
-        "salmon": "grilled salmon fish", "fish and chips": "fish chips",
-        "shrimp scampi": "shrimp scampi", "lobster": "lobster seafood",
-        "crab cakes": "crab cakes", "tuna steak": "tuna steak grilled",
-        
-        # Meat
-        "steak": "steak grilled beef", "beef stew": "beef stew",
-        "chicken breast": "chicken breast grilled", "roast chicken": "roast chicken",
-        "pork chops": "pork chops", "lamb chops": "lamb chops grilled",
-        "meatballs": "meatballs sauce", "pot roast": "pot roast beef",
-        
-        # Soups & Salads
-        "soup": "soup bowl hot", "chicken soup": "chicken soup",
-        "tomato soup": "tomato soup", "minestrone": "minestrone soup",
-        "caesar salad": "caesar salad", "greek salad": "greek salad",
-        "cobb salad": "cobb salad", "garden salad": "salad fresh",
-        
-        # Desserts
-        "chocolate cake": "chocolate cake slice", "cheesecake": "cheesecake slice",
-        "brownies": "brownies chocolate", "cookies": "cookies chocolate chip",
-        "ice cream": "ice cream scoop", "tiramisu": "tiramisu dessert",
-        "apple pie": "apple pie slice", "cupcakes": "cupcakes frosting",
+    # Priority food keywords (most specific first)
+    primary_foods = {
+        "apple": "apple", "banana": "banana", "orange": "orange", "strawberry": "strawberry",
+        "blueberry": "blueberry", "mango": "mango", "pineapple": "pineapple", "lemon": "lemon",
+        "chicken": "chicken", "beef": "beef", "pork": "pork", "salmon": "salmon", 
+        "fish": "fish", "tuna": "tuna", "shrimp": "shrimp", "turkey": "turkey",
+        "pasta": "pasta", "spaghetti": "spaghetti", "noodle": "noodles", "rice": "rice",
+        "pizza": "pizza", "burger": "burger", "sandwich": "sandwich",
+        "salad": "salad", "soup": "soup", "curry": "curry", "stir": "stirfry",
+        "egg": "eggs", "omelette": "omelette", "scrambled": "scrambled eggs",
+        "taco": "tacos", "burrito": "burrito", "quesadilla": "quesadilla",
+        "ramen": "ramen", "sushi": "sushi", "dumpling": "dumplings",
+        "pancake": "pancakes", "waffle": "waffles", "toast": "toast",
+        "cheese": "cheese", "tomato": "tomato", "potato": "potato",
+        "broccoli": "broccoli", "spinach": "spinach", "mushroom": "mushrooms",
+        "chocolate": "chocolate", "cake": "cake", "cookie": "cookies", "pie": "pie",
     }
     
-    # Try exact match first
-    query = recipe_map.get(name_lower)
+    # Find the FIRST matching primary food (most important ingredient)
+    main_ingredient = None
+    for key, value in primary_foods.items():
+        if key in name_lower:
+            main_ingredient = value
+            break
     
-    # If no exact match, try partial matches
-    if not query:
-        for key, value in recipe_map.items():
-            if key in name_lower or name_lower in key:
-                query = value
-                break
-    
-    # If still no match, build from name and cuisine
-    if not query:
-        # Clean up the recipe name
-        clean_name = name_lower.replace("_", " ").replace("-", " ")
-        if cuisine:
-            query = f"{cuisine.lower()} {clean_name} food"
-        else:
-            query = f"{clean_name} food dish"
+    # Build simple, focused query (Unsplash works best with 1-2 words)
+    if main_ingredient:
+        query = main_ingredient
+    else:
+        # Fallback: use first word of recipe name
+        query = name_lower.split()[0] if name_lower else "food"
     
     # Try Unsplash first (high quality) - but it often returns 503
     result = await _fetch_unsplash_photo(query, 800, 600)
