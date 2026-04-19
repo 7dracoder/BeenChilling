@@ -44,7 +44,23 @@ fridge_observer.db
 
 # Documentation (keep local only)
 *.md
-!supabase/migrations/*.sql
+!README.md
+
+# Deployment/status/notes files
+*.txt
+!requirements.txt
+
+# One-off scripts (not part of the app)
+add_*.py
+check_*.py
+confirm_*.py
+create_admin*.py
+fix_*.py
+list_*.py
+test_*.py
+URGENT_*.md
+RENDER_*.md
+RECIPE_FIX*.md
 
 # Logs
 *.log
