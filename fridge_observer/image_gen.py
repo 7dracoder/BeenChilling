@@ -123,107 +123,91 @@ async def _hf_generate(prompt: str, width: int, height: int, steps: int = 4) -> 
 # ── Public API ────────────────────────────────────────────────
 
 async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Generate AI food photo for a recipe using Gemini Imagen."""
-    # Try Gemini Imagen first for AI-generated food images
-    gemini_image = await _generate_recipe_with_gemini(recipe_name, cuisine)
-    if gemini_image:
-        return gemini_image
-    
-    # Fallback to Unsplash for stock photos
+    """Get accurate food photo for a recipe using improved Unsplash search."""
     name_lower = recipe_name.lower()
     
-    # Build specific query for Unsplash
-    if "omelette" in name_lower or "omelet" in name_lower:
-        query = "omelette breakfast eggs"
-    elif "stir" in name_lower and "fry" in name_lower:
-        query = "stir fry wok asian"
-    elif "curry" in name_lower:
-        query = "curry indian spices"
-    elif "salmon" in name_lower:
-        query = "salmon fish seafood"
-    elif "pasta" in name_lower:
-        query = "pasta italian"
-    elif "pancake" in name_lower:
-        query = "pancakes breakfast"
-    elif "salad" in name_lower:
-        query = "salad fresh vegetables"
-    elif "soup" in name_lower:
-        query = "soup bowl"
-    elif "taco" in name_lower or "burrito" in name_lower:
-        query = "tacos mexican"
-    elif "pizza" in name_lower:
-        query = "pizza italian"
-    elif "chicken" in name_lower:
-        query = "chicken dish"
-    elif "beef" in name_lower or "steak" in name_lower:
-        query = "beef steak"
-    elif "burger" in name_lower:
-        query = "burger"
-    elif "sandwich" in name_lower:
-        query = "sandwich"
-    elif "rice" in name_lower:
-        query = "rice dish"
-    elif "noodle" in name_lower:
-        query = "noodles"
-    elif "sushi" in name_lower:
-        query = "sushi japanese"
-    elif "dessert" in name_lower or "cake" in name_lower:
-        query = "dessert cake"
-    else:
-        # Generic food photo with cuisine hint
-        query = f"{recipe_name.lower()}"
-        if cuisine:
-            query = f"{cuisine.lower()} {query}"
+    # Comprehensive recipe name mapping for accurate images
+    recipe_map = {
+        # Breakfast
+        "omelette": "omelette eggs breakfast", "omelet": "omelette eggs breakfast",
+        "pancakes": "pancakes stack breakfast", "waffles": "waffles breakfast",
+        "french toast": "french toast breakfast", "scrambled eggs": "scrambled eggs",
+        "eggs benedict": "eggs benedict hollandaise", "breakfast burrito": "breakfast burrito",
+        
+        # Pasta & Italian
+        "pasta carbonara": "pasta carbonara creamy", "spaghetti bolognese": "spaghetti bolognese",
+        "lasagna": "lasagna italian", "fettuccine alfredo": "fettuccine alfredo",
+        "penne arrabbiata": "penne arrabbiata", "pasta primavera": "pasta vegetables",
+        "ravioli": "ravioli pasta", "gnocchi": "gnocchi italian",
+        
+        # Asian
+        "stir fry": "stir fry wok vegetables", "fried rice": "fried rice asian",
+        "pad thai": "pad thai noodles", "ramen": "ramen bowl noodles",
+        "sushi": "sushi platter", "curry": "curry rice indian",
+        "chicken tikka masala": "chicken tikka masala", "pho": "pho vietnamese soup",
+        "dumplings": "dumplings asian", "spring rolls": "spring rolls",
+        
+        # Mexican
+        "tacos": "tacos mexican", "burrito": "burrito mexican",
+        "quesadilla": "quesadilla cheese", "enchiladas": "enchiladas mexican",
+        "nachos": "nachos cheese", "fajitas": "fajitas sizzling",
+        
+        # American
+        "burger": "burger gourmet", "cheeseburger": "cheeseburger",
+        "hot dog": "hot dog", "bbq ribs": "bbq ribs",
+        "mac and cheese": "mac cheese creamy", "fried chicken": "fried chicken crispy",
+        "pizza": "pizza slice", "sandwich": "sandwich deli",
+        
+        # Seafood
+        "salmon": "grilled salmon fish", "fish and chips": "fish chips",
+        "shrimp scampi": "shrimp scampi", "lobster": "lobster seafood",
+        "crab cakes": "crab cakes", "tuna steak": "tuna steak grilled",
+        
+        # Meat
+        "steak": "steak grilled beef", "beef stew": "beef stew",
+        "chicken breast": "chicken breast grilled", "roast chicken": "roast chicken",
+        "pork chops": "pork chops", "lamb chops": "lamb chops grilled",
+        "meatballs": "meatballs sauce", "pot roast": "pot roast beef",
+        
+        # Soups & Salads
+        "soup": "soup bowl hot", "chicken soup": "chicken soup",
+        "tomato soup": "tomato soup", "minestrone": "minestrone soup",
+        "caesar salad": "caesar salad", "greek salad": "greek salad",
+        "cobb salad": "cobb salad", "garden salad": "salad fresh",
+        
+        # Desserts
+        "chocolate cake": "chocolate cake slice", "cheesecake": "cheesecake slice",
+        "brownies": "brownies chocolate", "cookies": "cookies chocolate chip",
+        "ice cream": "ice cream scoop", "tiramisu": "tiramisu dessert",
+        "apple pie": "apple pie slice", "cupcakes": "cupcakes frosting",
+    }
     
-    # Try Unsplash first (more accurate)
+    # Try exact match first
+    query = recipe_map.get(name_lower)
+    
+    # If no exact match, try partial matches
+    if not query:
+        for key, value in recipe_map.items():
+            if key in name_lower or name_lower in key:
+                query = value
+                break
+    
+    # If still no match, build from name and cuisine
+    if not query:
+        # Clean up the recipe name
+        clean_name = name_lower.replace("_", " ").replace("-", " ")
+        if cuisine:
+            query = f"{cuisine.lower()} {clean_name} food"
+        else:
+            query = f"{clean_name} food dish"
+    
+    # Try Unsplash first (high quality)
     result = await _fetch_unsplash_photo(query, 800, 600)
     if result:
         return result
     
-    # Fallback to LoremFlickr if Unsplash fails
+    # Fallback to LoremFlickr
     return await _fetch_photo(query, 512, 512)
-
-
-async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Generate a food image using Gemini Imagen API."""
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    if not gemini_key:
-        return None
-    
-    try:
-        # Build a detailed food photography prompt
-        cuisine_hint = f"{cuisine} " if cuisine else ""
-        prompt = f"Professional food photography of {cuisine_hint}{recipe_name}, beautifully plated on a white dish, natural lighting, appetizing, high quality, restaurant style, top view"
-        
-        # Use Gemini Imagen 3 for image generation
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generate?key={gemini_key}"
-        
-        payload = {
-            "prompt": prompt,
-            "number_of_images": 1,
-            "aspect_ratio": "4:3",
-            "safety_filter_level": "block_only_high",
-            "person_generation": "dont_allow"
-        }
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            
-            if response.status_code == 200:
-                data = response.json()
-                # Gemini returns base64 encoded images
-                if "generatedImages" in data and len(data["generatedImages"]) > 0:
-                    image_b64 = data["generatedImages"][0]["image"]
-                    image_bytes = base64.b64decode(image_b64)
-                    logger.info("✓ Gemini generated recipe image: %d bytes for '%s'", len(image_bytes), recipe_name)
-                    return image_bytes
-            else:
-                logger.warning("Gemini Imagen API error: %d", response.status_code)
-    
-    except Exception as exc:
-        logger.warning("Gemini Imagen failed for '%s': %s", recipe_name, exc)
-    
-    return None
     elif "noodle" in name_lower:
         query = "noodles"
     elif "sushi" in name_lower:
