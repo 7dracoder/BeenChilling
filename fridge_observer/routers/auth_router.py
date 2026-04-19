@@ -195,9 +195,11 @@ def _send_otp_email_async(email: str, display_name: str, code: str) -> None:
     def _send():
         try:
             send_otp_email(email, display_name, code)
-            logger.info("OTP email sent to %s", email)
+            logger.info("✓ OTP email sent successfully to %s", email)
+        except RuntimeError as exc:
+            logger.error("❌ SMTP not configured: %s", exc)
         except Exception as exc:
-            logger.error("Failed to send OTP email to %s: %s", email, exc)
+            logger.error("❌ Failed to send OTP email to %s: %s", email, exc, exc_info=True)
 
     threading.Thread(target=_send, daemon=True).start()
 
