@@ -134,28 +134,14 @@ async def _hf_generate(prompt: str, width: int, height: int, steps: int = 4) -> 
 # ── Public API ────────────────────────────────────────────────
 
 async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Get accurate food photo for a recipe - tries Gemini Imagen first with caching, then Unsplash."""
+    """Get accurate food photo for a recipe - uses Unsplash for fast, relevant images."""
     # Check cache first
     cache_key = _cache_key("recipe", recipe_name, cuisine)
     if cache_key in _image_cache:
         logger.info("✓ Using cached image for '%s'", recipe_name)
         return _image_cache[cache_key]
     
-    # Try Gemini Imagen first for AI-generated images (give it enough time)
-    try:
-        gemini_image = await asyncio.wait_for(
-            _generate_recipe_with_gemini(recipe_name, cuisine),
-            timeout=25.0  # Give Gemini 25 seconds to generate
-        )
-        if gemini_image:
-            _image_cache[cache_key] = gemini_image
-            return gemini_image
-    except asyncio.TimeoutError:
-        logger.warning("Gemini Imagen timeout for '%s' - falling back to Unsplash", recipe_name)
-    except Exception as exc:
-        logger.warning("Gemini Imagen error for '%s': %s - falling back", recipe_name, exc)
-    
-    # Fallback to Unsplash with improved mapping
+    # Use Unsplash directly for fast, relevant images (skip slow Gemini for recipes)
     name_lower = recipe_name.lower()
     
     # Comprehensive recipe name mapping for accurate images
@@ -236,10 +222,14 @@ async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional
     # Try Unsplash first (high quality)
     result = await _fetch_unsplash_photo(query, 800, 600)
     if result:
+        _image_cache[cache_key] = result  # Cache the result
         return result
     
     # Fallback to LoremFlickr
-    return await _fetch_photo(query, 512, 512)
+    fallback = await _fetch_photo(query, 512, 512)
+    if fallback:
+        _image_cache[cache_key] = fallback  # Cache fallback too
+    return fallback
 
 
 async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
