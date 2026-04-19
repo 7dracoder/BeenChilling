@@ -217,10 +217,8 @@ async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional
 
 
 async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> Optional[bytes]:
-    """Generate food image using Gemini Imagen via Vertex AI API."""
+    """Generate food image using Gemini Imagen via AI Platform API."""
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-    region = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
     
     if not gemini_key:
         return None
@@ -230,20 +228,12 @@ async def _generate_recipe_with_gemini(recipe_name: str, cuisine: str = "") -> O
         cuisine_hint = f"{cuisine} " if cuisine else ""
         prompt = f"Professional food photography of {cuisine_hint}{recipe_name}, beautifully plated, appetizing, high quality"
         
-        # If project_id is set, use Vertex AI endpoint
-        if project_id:
-            url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/imagen-3.0-generate-001:predict"
-        else:
-            # Fallback to generativelanguage API with API key
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}"
+        # Use AI Platform API with API key (no project ID needed)
+        url = f"https://aiplatform.googleapis.com/v1/publishers/google/models/imagen-3.0-generate-001:predict?key={gemini_key}"
         
         headers = {
             "Content-Type": "application/json"
         }
-        
-        # Add authorization header only if using Vertex AI endpoint
-        if project_id:
-            headers["Authorization"] = f"Bearer {gemini_key}"
         
         payload = {
             "instances": [
@@ -406,29 +396,19 @@ async def generate_blueprint_image(product_name: str, redesign_spec: str = "") -
     
     logger.info(f"Generating blueprint for '{product_name}' with detailed prompt")
     
-    # Try Gemini Imagen via Vertex AI first (you have API key configured)
+    # Try Gemini Imagen via AI Platform API first (you have API key configured)
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-    region = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
     
     if gemini_key:
         try:
             logger.info("Attempting Gemini Imagen blueprint generation...")
             
-            # If project_id is set, use Vertex AI endpoint
-            if project_id:
-                url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/imagen-3.0-generate-001:predict"
-            else:
-                # Fallback to generativelanguage API with API key
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}"
+            # Use AI Platform API with API key (no project ID needed)
+            url = f"https://aiplatform.googleapis.com/v1/publishers/google/models/imagen-3.0-generate-001:predict?key={gemini_key}"
             
             headers = {
                 "Content-Type": "application/json"
             }
-            
-            # Add authorization header only if using Vertex AI endpoint
-            if project_id:
-                headers["Authorization"] = f"Bearer {gemini_key}"
             
             payload = {
                 "instances": [
