@@ -141,11 +141,11 @@ async def generate_recipe_image(recipe_name: str, cuisine: str = "") -> Optional
         logger.info("✓ Using cached image for '%s'", recipe_name)
         return _image_cache[cache_key]
     
-    # Try Gemini Imagen first for AI-generated images (but don't wait too long)
+    # Try Gemini Imagen first for AI-generated images (give it enough time)
     try:
         gemini_image = await asyncio.wait_for(
             _generate_recipe_with_gemini(recipe_name, cuisine),
-            timeout=5.0  # Only wait 5 seconds for Gemini
+            timeout=25.0  # Give Gemini 25 seconds to generate
         )
         if gemini_image:
             _image_cache[cache_key] = gemini_image
