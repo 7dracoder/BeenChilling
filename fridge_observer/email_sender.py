@@ -59,7 +59,7 @@ def send_otp_email(to: str, display_name: str, otp_code: str) -> None:
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#2d5a3d,#4A7C59);padding:32px;text-align:center;">
-              <div style="font-size:40px;margin-bottom:8px;">❄️</div>
+              <div style="font-size:40px;margin-bottom:8px;">🧊</div>
               <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0;letter-spacing:-0.3px;">BeenChilling</h1>
             </td>
           </tr>
